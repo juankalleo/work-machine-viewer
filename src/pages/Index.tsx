@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { FileImporter } from '@/components/FileImporter';
 import { Dashboard } from '@/components/Dashboard';
+import { EquipmentTable } from '@/components/equipment/EquipmentTable';
+import { AddEquipmentDialog } from '@/components/equipment/AddEquipmentDialog';
 import { Button } from '@/components/ui/button';
-import { EquipmentData } from '@/types/equipment';
-import { saveEquipmentData, loadEquipmentData, clearEquipmentData } from '@/lib/storage';
-import { sampleData } from '@/lib/excel-parser';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useEquipment } from '@/hooks/useEquipment';
+import { parseExcelFile } from '@/lib/excel-parser';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Monitor, 
@@ -12,49 +14,64 @@ import {
   Database, 
   Trash2,
   BarChart3,
-  FileSpreadsheet 
+  FileSpreadsheet,
+  Table as TableIcon,
+  Plus
 } from 'lucide-react';
 
 const Index = () => {
-  const [equipmentData, setEquipmentData] = useState<EquipmentData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { 
+    equipmentData, 
+    isLoading, 
+    error,
+    addCPU,
+    addMonitor,
+    updateCPU,
+    updateMonitor,
+    deleteCPU,
+    deleteMonitor,
+    importFromExcel,
+    refetch
+  } = useEquipment();
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Load data from localStorage on component mount
-    const savedData = loadEquipmentData();
-    if (savedData) {
-      setEquipmentData(savedData);
+  const handleDataImported = async (data: EquipmentData) => {
+    try {
+      await importFromExcel(data);
+    } catch (error) {
+      console.error('Error importing data:', error);
+      toast({
+        title: "Erro na importação",
+        description: "Não foi possível importar os dados da planilha.",
+        variant: "destructive",
+      });
     }
-    setIsLoading(false);
-  }, []);
-
-  const handleDataImported = (data: EquipmentData) => {
-    setEquipmentData(data);
-    saveEquipmentData(data);
-    toast({
-      title: "Dados salvos!",
-      description: "Os dados foram salvos no armazenamento local do navegador.",
-    });
   };
 
-  const handleLoadSampleData = () => {
-    setEquipmentData(sampleData);
-    saveEquipmentData(sampleData);
-    toast({
-      title: "Dados de exemplo carregados!",
-      description: "Use estes dados para testar o sistema.",
-    });
-  };
-
-  const handleClearData = () => {
-    setEquipmentData(null);
-    clearEquipmentData();
-    toast({
-      title: "Dados removidos",
-      description: "Todos os dados foram removidos do armazenamento.",
-      variant: "destructive",
-    });
+  const handleClearData = async () => {
+    try {
+      // Clear database data
+      if (equipmentData) {
+        const deletePromises = [
+          ...equipmentData.cpus.map(cpu => deleteCPU(cpu.id)),
+          ...equipmentData.monitors.map(monitor => deleteMonitor(monitor.id))
+        ];
+        await Promise.all(deletePromises);
+      }
+      
+      toast({
+        title: "Dados removidos",
+        description: "Todos os dados foram removidos do banco de dados.",
+        variant: "destructive",
+      });
+    } catch (error) {
+      console.error('Error clearing data:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível limpar todos os dados.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
@@ -92,19 +109,12 @@ const Index = () => {
           <div className="max-w-2xl mx-auto space-y-6">
             <FileImporter onDataImported={handleDataImported} />
             
-            {/* Alternative Actions */}
-            <div className="text-center space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Ou teste o sistema com dados de exemplo
-              </p>
-              <Button 
-                onClick={handleLoadSampleData}
-                variant="outline"
-                className="mr-4"
-              >
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Carregar Dados de Exemplo
-              </Button>
+            {/* Add Equipment Button */}
+            <div className="text-center">
+              <AddEquipmentDialog 
+                onAddCPU={addCPU}
+                onAddMonitor={addMonitor}
+              />
             </div>
 
             {/* Features Preview */}
@@ -155,14 +165,10 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Button 
-                onClick={() => setEquipmentData(null)}
-                variant="outline" 
-                size="sm"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Nova Importação
-              </Button>
+              <AddEquipmentDialog 
+                onAddCPU={addCPU}
+                onAddMonitor={addMonitor}
+              />
               <Button 
                 onClick={handleClearData}
                 variant="outline" 
@@ -176,9 +182,41 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Dashboard */}
+      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <Dashboard data={equipmentData} />
+        <Tabs defaultValue="dashboard" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="dashboard" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="equipment" className="flex items-center gap-2">
+              <TableIcon className="h-4 w-4" />
+              Equipamentos
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dashboard" className="space-y-6">
+            <Dashboard data={equipmentData} />
+          </TabsContent>
+
+          <TabsContent value="equipment" className="space-y-6">
+            <EquipmentTable 
+              cpus={equipmentData.cpus}
+              monitors={equipmentData.monitors}
+              onEditCPU={(cpu) => {
+                // TODO: Implement edit functionality
+                console.log('Edit CPU:', cpu);
+              }}
+              onEditMonitor={(monitor) => {
+                // TODO: Implement edit functionality
+                console.log('Edit Monitor:', monitor);
+              }}
+              onDeleteCPU={deleteCPU}
+              onDeleteMonitor={deleteMonitor}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

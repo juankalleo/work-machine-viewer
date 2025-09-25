@@ -14,7 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cpus: {
+        Row: {
+          created_at: string
+          data_formatacao: string | null
+          departamento: string
+          desfazimento: string | null
+          e_estado: string
+          hd: string | null
+          id: string
+          item: number
+          marca_modelo: string
+          memoria_ram: string
+          no_dominio: string
+          nomenclatura: string
+          processador: string
+          responsavel: string
+          sistema_operacional: string
+          ssd: string | null
+          tombamento: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_formatacao?: string | null
+          departamento: string
+          desfazimento?: string | null
+          e_estado: string
+          hd?: string | null
+          id?: string
+          item: number
+          marca_modelo: string
+          memoria_ram: string
+          no_dominio: string
+          nomenclatura: string
+          processador: string
+          responsavel: string
+          sistema_operacional: string
+          ssd?: string | null
+          tombamento: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_formatacao?: string | null
+          departamento?: string
+          desfazimento?: string | null
+          e_estado?: string
+          hd?: string | null
+          id?: string
+          item?: number
+          marca_modelo?: string
+          memoria_ram?: string
+          no_dominio?: string
+          nomenclatura?: string
+          processador?: string
+          responsavel?: string
+          sistema_operacional?: string
+          ssd?: string | null
+          tombamento?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      monitors: {
+        Row: {
+          created_at: string
+          data_verificacao: string
+          departamento: string
+          desfazimento: string | null
+          e_estado: string
+          id: string
+          item: number
+          modelo: string
+          numero_serie: string
+          observacao: string | null
+          polegadas: string
+          responsavel: string
+          tombamento: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_verificacao: string
+          departamento: string
+          desfazimento?: string | null
+          e_estado: string
+          id?: string
+          item: number
+          modelo: string
+          numero_serie: string
+          observacao?: string | null
+          polegadas: string
+          responsavel: string
+          tombamento: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_verificacao?: string
+          departamento?: string
+          desfazimento?: string | null
+          e_estado?: string
+          id?: string
+          item?: number
+          modelo?: string
+          numero_serie?: string
+          observacao?: string | null
+          polegadas?: string
+          responsavel?: string
+          tombamento?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

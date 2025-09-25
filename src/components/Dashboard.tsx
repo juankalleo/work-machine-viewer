@@ -43,10 +43,10 @@ export function Dashboard({ data }: DashboardProps) {
       }
       const stats = departmentMap.get(dept)!;
       stats.totalCPUs++;
-      if (cpu.eEstado !== 'RASURADO' && cpu.marcaModelo) {
+      if (cpu.e_estado !== 'RASURADO' && cpu.marca_modelo) {
         stats.cpusAtivos++;
       }
-      if (cpu.dataFormatacao && cpu.dataFormatacao !== 'N/T') {
+      if (cpu.data_formatacao && cpu.data_formatacao !== 'N/T') {
         stats.formatacoes++;
       }
     });
@@ -65,7 +65,7 @@ export function Dashboard({ data }: DashboardProps) {
       }
       const stats = departmentMap.get(dept)!;
       stats.totalMonitors++;
-      if (monitor.eEstado && monitor.modelo) {
+      if (monitor.e_estado && monitor.modelo) {
         stats.monitoresAtivos++;
       }
     });
@@ -93,8 +93,8 @@ export function Dashboard({ data }: DashboardProps) {
     // Operating System statistics
     const osMap = new Map<string, number>();
     data.cpus.forEach(cpu => {
-      if (cpu.sistemaOperacional && cpu.sistemaOperacional !== 'N/T') {
-        osMap.set(cpu.sistemaOperacional, (osMap.get(cpu.sistemaOperacional) || 0) + 1);
+      if (cpu.sistema_operacional && cpu.sistema_operacional !== 'N/T') {
+        osMap.set(cpu.sistema_operacional, (osMap.get(cpu.sistema_operacional) || 0) + 1);
       }
     });
     
@@ -111,9 +111,9 @@ export function Dashboard({ data }: DashboardProps) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const recentFormattings = data.cpus.filter(cpu => {
-      if (!cpu.dataFormatacao || cpu.dataFormatacao === 'N/T') return false;
+      if (!cpu.data_formatacao || cpu.data_formatacao === 'N/T') return false;
       try {
-        const formatDate = new Date(cpu.dataFormatacao.split('/').reverse().join('-'));
+        const formatDate = new Date(cpu.data_formatacao.split('/').reverse().join('-'));
         return formatDate >= thirtyDaysAgo;
       } catch {
         return false;
@@ -128,8 +128,8 @@ export function Dashboard({ data }: DashboardProps) {
       processorStats,
       osStats,
       recentFormattings,
-      activeCPUs: data.cpus.filter(cpu => cpu.eEstado !== 'RASURADO' && cpu.marcaModelo).length,
-      activeMonitors: data.monitors.filter(monitor => monitor.eEstado && monitor.modelo).length
+      activeCPUs: data.cpus.filter(cpu => cpu.e_estado !== 'RASURADO' && cpu.marca_modelo).length,
+      activeMonitors: data.monitors.filter(monitor => monitor.e_estado && monitor.modelo).length
     };
   }, [data]);
 

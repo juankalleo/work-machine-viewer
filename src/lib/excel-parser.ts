@@ -68,22 +68,22 @@ function parseCPUsFromSheet(data: any[][], cpus: CPU[]) {
         item: Number(row[0]) || 0,
         nomenclatura: String(row[1] || ''),
         tombamento: String(row[2] || ''),
-        eEstado: String(row[3] || ''),
-        marcaModelo: String(row[4] || ''),
+        e_estado: String(row[3] || ''),
+        marca_modelo: String(row[4] || ''),
         processador: String(row[5] || ''),
-        memoriaRam: String(row[6] || ''),
-        hd: String(row[7] || ''),
-        ssd: String(row[8] || ''),
-        sistemaOperacional: String(row[9] || ''),
-        noDominio: String(row[10] || ''),
-        dataFormatacao: String(row[11] || ''),
+        memoria_ram: String(row[6] || ''),
+        hd: String(row[7] || '') || null,
+        ssd: String(row[8] || '') || null,
+        sistema_operacional: String(row[9] || ''),
+        no_dominio: String(row[10] || ''),
+        data_formatacao: String(row[11] || '') || null,
         responsavel: String(row[12] || ''),
-        desfazimento: String(row[13] || ''),
+        desfazimento: String(row[13] || '') || null,
         departamento: currentDepartment
       };
       
       // Only add if it has meaningful data
-      if (cpu.nomenclatura || cpu.marcaModelo) {
+      if (cpu.nomenclatura || cpu.marca_modelo) {
         cpus.push(cpu);
       }
     }
@@ -124,14 +124,14 @@ function parseMonitorsFromSheet(data: any[][], monitors: Monitor[]) {
         id: `monitor-${currentDepartment}-${row[0]}-${Date.now()}-${Math.random()}`,
         item: Number(row[0]) || 0,
         tombamento: String(row[1] || ''),
-        numeroSerie: String(row[2] || ''),
-        eEstado: String(row[3] || ''),
+        numero_serie: String(row[2] || ''),
+        e_estado: String(row[3] || ''),
         modelo: String(row[4] || ''),
         polegadas: String(row[5] || ''),
-        observacao: String(row[6] || ''),
-        dataVerificacao: String(row[11] || ''),
+        observacao: String(row[6] || '') || null,
+        data_verificacao: String(row[11] || ''),
         responsavel: String(row[12] || ''),
-        desfazimento: String(row[13] || ''),
+        desfazimento: String(row[13] || '') || null,
         departamento: currentDepartment
       };
       
@@ -151,17 +151,17 @@ export const sampleData: EquipmentData = {
       item: 1,
       nomenclatura: 'DER-GTI018',
       tombamento: '12018',
-      eEstado: 'RASURADO',
-      marcaModelo: 'DELL OptiPlex 7040',
+      e_estado: 'RASURADO',
+      marca_modelo: 'DELL OptiPlex 7040',
       processador: 'Intel Core I5-6500',
-      memoriaRam: '20GB',
+      memoria_ram: '20GB',
       hd: '1TB',
-      ssd: 'N/T',
-      sistemaOperacional: 'Windows 11 PRO',
-      noDominio: 'SIM',
-      dataFormatacao: '23/09/2025',
+      ssd: null,
+      sistema_operacional: 'Windows 11 PRO',
+      no_dominio: 'SIM',
+      data_formatacao: '23/09/2025',
       responsavel: 'JUAN KALLEO',
-      desfazimento: 'NÃO',
+      desfazimento: null,
       departamento: 'DER-GTI'
     }
   ],
@@ -170,14 +170,14 @@ export const sampleData: EquipmentData = {
       id: '1',
       item: 1,
       tombamento: '',
-      numeroSerie: 'BR-OMNV2T-TVBOO-OA9-2L9B-AO9',
-      eEstado: '210,000,509',
+      numero_serie: 'BR-OMNV2T-TVBOO-OA9-2L9B-AO9',
+      e_estado: '210,000,509',
       modelo: 'DELL P2319Hc',
       polegadas: '23',
-      observacao: '',
-      dataVerificacao: '24/09/2025',
+      observacao: null,
+      data_verificacao: '24/09/2025',
       responsavel: 'Diego Charles',
-      desfazimento: 'NÃO',
+      desfazimento: null,
       departamento: 'DER-GTI'
     }
   ]

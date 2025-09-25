@@ -3,33 +3,37 @@ export interface CPU {
   item: number;
   nomenclatura: string;
   tombamento: string;
-  eEstado: string;
-  marcaModelo: string;
+  e_estado: string;
+  marca_modelo: string;
   processador: string;
-  memoriaRam: string;
-  hd: string;
-  ssd: string;
-  sistemaOperacional: string;
-  noDominio: string;
-  dataFormatacao: string;
+  memoria_ram: string;
+  hd: string | null;
+  ssd: string | null;
+  sistema_operacional: string;
+  no_dominio: string;
+  data_formatacao: string | null;
   responsavel: string;
-  desfazimento: string;
+  desfazimento: string | null;
   departamento: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Monitor {
   id: string;
   item: number;
   tombamento: string;
-  numeroSerie: string;
-  eEstado: string;
+  numero_serie: string;
+  e_estado: string;
   modelo: string;
   polegadas: string;
-  observacao?: string;
-  dataVerificacao: string;
+  observacao?: string | null;
+  data_verificacao: string;
   responsavel: string;
-  desfazimento: string;
+  desfazimento: string | null;
   departamento: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface EquipmentData {
