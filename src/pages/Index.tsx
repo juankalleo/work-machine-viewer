@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEquipment } from '@/hooks/useEquipment';
 import { parseExcelFile } from '@/lib/excel-parser';
 import { useToast } from '@/hooks/use-toast';
+import { EquipmentData } from '@/types/equipment';
 import { 
   Monitor, 
   Upload, 
