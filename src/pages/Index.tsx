@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { FileImporter } from '@/components/FileImporter';
 import { Dashboard } from '@/components/Dashboard';
 import { EquipmentTable } from '@/components/equipment/EquipmentTable';
@@ -6,6 +7,7 @@ import { AddEquipmentDialog } from '@/components/equipment/AddEquipmentDialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEquipment } from '@/hooks/useEquipment';
+import { useAuth } from '@/hooks/useAuth';
 import { parseExcelFile } from '@/lib/excel-parser';
 import { useToast } from '@/hooks/use-toast';
 import { EquipmentData } from '@/types/equipment';
@@ -17,10 +19,14 @@ import {
   BarChart3,
   FileSpreadsheet,
   Table as TableIcon,
-  Plus
+  Plus,
+  LogOut,
+  User,
+  Shield
 } from 'lucide-react';
 
 const Index = () => {
+  const { user, profile, loading: authLoading, signOut, isAdmin } = useAuth();
   const { 
     equipmentData, 
     isLoading, 
@@ -36,6 +42,22 @@ const Index = () => {
   } = useEquipment();
   const { toast } = useToast();
 
+  // Redirect to auth if not logged in
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-dashboard-bg">
+        <div className="animate-pulse text-center">
+          <Monitor className="h-12 w-12 mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Carregando sistema...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
   const handleDataImported = async (data: EquipmentData) => {
     try {
       await importFromExcel(data);
@@ -50,6 +72,15 @@ const Index = () => {
   };
 
   const handleClearData = async () => {
+    if (!isAdmin()) {
+      toast({
+        title: "Acesso negado",
+        description: "Apenas administradores podem limpar dados.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       // Clear database data
       if (equipmentData) {
@@ -75,6 +106,10 @@ const Index = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-dashboard-bg">
@@ -98,11 +133,11 @@ const Index = () => {
               </div>
             </div>
             <h1 className="text-4xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
-              Sistema de Gerenciamento de Equipamentos
+              DER-SESUT MONITORAMENTO
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Importe sua planilha de equipamentos e visualize métricas interativas, 
-              gráficos e estatísticas detalhadas sobre CPUs e monitores.
+              Sistema de Gerenciamento de Equipamentos de TI. 
+              Importe planilhas e visualize estatísticas detalhadas sobre CPUs e monitores.
             </p>
           </div>
 
@@ -110,13 +145,15 @@ const Index = () => {
           <div className="max-w-2xl mx-auto space-y-6">
             <FileImporter onDataImported={handleDataImported} />
             
-            {/* Add Equipment Button */}
-            <div className="text-center">
-              <AddEquipmentDialog 
-                onAddCPU={addCPU}
-                onAddMonitor={addMonitor}
-              />
-            </div>
+            {/* Add Equipment Button - Only for admins */}
+            {isAdmin() && (
+              <div className="text-center">
+                <AddEquipmentDialog 
+                  onAddCPU={addCPU}
+                  onAddMonitor={addMonitor}
+                />
+              </div>
+            )}
 
             {/* Features Preview */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
@@ -129,9 +166,9 @@ const Index = () => {
               </div>
               <div className="text-center p-6 rounded-lg bg-gradient-card shadow-card">
                 <Database className="h-8 w-8 mx-auto mb-3 text-dashboard-success" />
-                <h3 className="font-semibold mb-2">Armazenamento Local</h3>
+                <h3 className="font-semibold mb-2">Banco de Dados</h3>
                 <p className="text-sm text-muted-foreground">
-                  Dados salvos automaticamente no seu navegador
+                  Dados armazenados com segurança no Supabase
                 </p>
               </div>
               <div className="text-center p-6 rounded-lg bg-gradient-card shadow-card">
@@ -159,24 +196,41 @@ const Index = () => {
                 <Monitor className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">Sistema de Equipamentos</h1>
+                <h1 className="text-xl font-bold">DER-SESUT MONITORAMENTO</h1>
                 <p className="text-sm text-muted-foreground">
                   {equipmentData.cpus.length} CPUs • {equipmentData.monitors.length} Monitores
+                  {profile && (
+                    <span className="ml-2">
+                      • {profile.username} {isAdmin() && '(Admin)'}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <AddEquipmentDialog 
-                onAddCPU={addCPU}
-                onAddMonitor={addMonitor}
-              />
+              {isAdmin() && (
+                <AddEquipmentDialog 
+                  onAddCPU={addCPU}
+                  onAddMonitor={addMonitor}
+                />
+              )}
+              {isAdmin() && (
+                <Button 
+                  onClick={handleClearData}
+                  variant="outline" 
+                  size="sm"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Limpar Dados
+                </Button>
+              )}
               <Button 
-                onClick={handleClearData}
+                onClick={handleSignOut}
                 variant="outline" 
                 size="sm"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Limpar Dados
+                <LogOut className="h-4 w-4 mr-2" />
+                Sair
               </Button>
             </div>
           </div>
@@ -215,6 +269,7 @@ const Index = () => {
               }}
               onDeleteCPU={deleteCPU}
               onDeleteMonitor={deleteMonitor}
+              isAdmin={isAdmin()}
             />
           </TabsContent>
         </Tabs>

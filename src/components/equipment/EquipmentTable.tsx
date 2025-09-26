@@ -32,6 +32,7 @@ interface EquipmentTableProps {
   onEditMonitor?: (monitor: Monitor) => void;
   onDeleteCPU?: (id: string) => void;
   onDeleteMonitor?: (id: string) => void;
+  isAdmin?: boolean;
 }
 
 export function EquipmentTable({ 
@@ -40,7 +41,8 @@ export function EquipmentTable({
   onEditCPU, 
   onEditMonitor, 
   onDeleteCPU, 
-  onDeleteMonitor 
+  onDeleteMonitor,
+  isAdmin = false
 }: EquipmentTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -207,6 +209,8 @@ export function EquipmentTable({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => onEditCPU(cpu)}
+                                disabled={!isAdmin}
+                                title={!isAdmin ? "Apenas administradores podem editar" : ""}
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
@@ -216,6 +220,8 @@ export function EquipmentTable({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => onDeleteCPU(cpu.id)}
+                                disabled={!isAdmin}
+                                title={!isAdmin ? "Apenas administradores podem excluir" : ""}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -284,6 +290,8 @@ export function EquipmentTable({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => onEditMonitor(monitor)}
+                                disabled={!isAdmin}
+                                title={!isAdmin ? "Apenas administradores podem editar" : ""}
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
@@ -293,6 +301,8 @@ export function EquipmentTable({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => onDeleteMonitor(monitor.id)}
+                                disabled={!isAdmin}
+                                title={!isAdmin ? "Apenas administradores podem excluir" : ""}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

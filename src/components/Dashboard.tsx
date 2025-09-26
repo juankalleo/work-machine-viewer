@@ -186,15 +186,15 @@ export function Dashboard({ data }: DashboardProps) {
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Processor Distribution */}
+        {/* Operating System Distribution */}
         <ChartCard
-          title="Processadores Mais Utilizados"
-          description="Top 5 processadores"
+          title="Sistemas Operacionais"
+          description="Distribuição de SOs instalados"
         >
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={stats.processorStats}
+                data={stats.osStats}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
@@ -202,7 +202,7 @@ export function Dashboard({ data }: DashboardProps) {
                 paddingAngle={2}
                 dataKey="count"
               >
-                {stats.processorStats.map((entry, index) => (
+                {stats.osStats.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -213,13 +213,13 @@ export function Dashboard({ data }: DashboardProps) {
         </ChartCard>
       </div>
 
-      {/* Operating System Distribution */}
+      {/* Memory and Storage Analysis */}
       <ChartCard
-        title="Sistemas Operacionais"
-        description="Distribuição de SOs instalados"
+        title="Análise de Memória RAM"
+        description="Distribuição de configurações de memória"
       >
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={stats.osStats} layout="horizontal">
+          <BarChart data={stats.osStats} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" />
             <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
