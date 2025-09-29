@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEquipment } from '@/hooks/useEquipment';
 import { useAuth } from '@/hooks/useAuth';
 import { parseExcelFile } from '@/lib/excel-parser';
+import { exportToExcel } from '@/lib/excel-exporter';
 import { useToast } from '@/hooks/use-toast';
 import { EquipmentData } from '@/types/equipment';
 import { 
@@ -22,7 +23,8 @@ import {
   Plus,
   LogOut,
   User,
-  Shield
+  Shield,
+  Download
 } from 'lucide-react';
 
 const Index = () => {
@@ -110,6 +112,32 @@ const Index = () => {
     await signOut();
   };
 
+  const handleExportToExcel = () => {
+    if (!equipmentData) {
+      toast({
+        title: "Nenhum dado disponível",
+        description: "Não há dados para exportar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      exportToExcel(equipmentData, 'equipamentos_der_sesut');
+      toast({
+        title: "Exportação concluída",
+        description: "Dados exportados para planilha Excel com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-dashboard-bg">
@@ -141,43 +169,43 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Import Section */}
-          <div className="max-w-2xl mx-auto space-y-6">
-            <FileImporter onDataImported={handleDataImported} />
-            
-            {/* Add Equipment Button - Only for admins */}
-            {isAdmin() && (
+          {/* Import Section - Only for admins */}
+          {isAdmin() && (
+            <div className="max-w-2xl mx-auto space-y-6">
+              <FileImporter onDataImported={handleDataImported} />
+              
+              {/* Add Equipment Button - Only for admins */}
               <div className="text-center">
                 <AddEquipmentDialog 
                   onAddCPU={addCPU}
                   onAddMonitor={addMonitor}
                 />
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Features Preview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-              <div className="text-center p-6 rounded-lg bg-gradient-card shadow-card">
-                <BarChart3 className="h-8 w-8 mx-auto mb-3 text-dashboard-info" />
-                <h3 className="font-semibold mb-2">Dashboards Interativos</h3>
-                <p className="text-sm text-muted-foreground">
-                  Visualize métricas e estatísticas em tempo real
-                </p>
-              </div>
-              <div className="text-center p-6 rounded-lg bg-gradient-card shadow-card">
-                <Database className="h-8 w-8 mx-auto mb-3 text-dashboard-success" />
-                <h3 className="font-semibold mb-2">Banco de Dados</h3>
-                <p className="text-sm text-muted-foreground">
-                  Dados armazenados com segurança no Supabase
-                </p>
-              </div>
-              <div className="text-center p-6 rounded-lg bg-gradient-card shadow-card">
-                <Upload className="h-8 w-8 mx-auto mb-3 text-dashboard-warning" />
-                <h3 className="font-semibold mb-2">Importação Excel</h3>
-                <p className="text-sm text-muted-foreground">
-                  Suporte completo para planilhas .xlsx e .xls
-                </p>
-              </div>
+          {/* Features Preview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+            <div className="text-center p-6 rounded-lg bg-gradient-card shadow-card">
+              <BarChart3 className="h-8 w-8 mx-auto mb-3 text-dashboard-info" />
+              <h3 className="font-semibold mb-2">Dashboards Interativos</h3>
+              <p className="text-sm text-muted-foreground">
+                Visualize métricas e estatísticas em tempo real
+              </p>
+            </div>
+            <div className="text-center p-6 rounded-lg bg-gradient-card shadow-card">
+              <Database className="h-8 w-8 mx-auto mb-3 text-dashboard-success" />
+              <h3 className="font-semibold mb-2">Banco de Dados</h3>
+              <p className="text-sm text-muted-foreground">
+                Dados armazenados com segurança no Supabase
+              </p>
+            </div>
+            <div className="text-center p-6 rounded-lg bg-gradient-card shadow-card">
+              <Upload className="h-8 w-8 mx-auto mb-3 text-dashboard-warning" />
+              <h3 className="font-semibold mb-2">Importação Excel</h3>
+              <p className="text-sm text-muted-foreground">
+                Suporte completo para planilhas .xlsx e .xls
+              </p>
             </div>
           </div>
         </div>
@@ -208,21 +236,30 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center space-x-2">
+              <Button 
+                onClick={handleExportToExcel}
+                variant="outline" 
+                size="sm"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Excel
+              </Button>
               {isAdmin() && (
-                <AddEquipmentDialog 
-                  onAddCPU={addCPU}
-                  onAddMonitor={addMonitor}
-                />
-              )}
-              {isAdmin() && (
-                <Button 
-                  onClick={handleClearData}
-                  variant="outline" 
-                  size="sm"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Limpar Dados
-                </Button>
+                <>
+                  <AddEquipmentDialog 
+                    onAddCPU={addCPU}
+                    onAddMonitor={addMonitor}
+                  />
+                  <FileImporter onDataImported={handleDataImported} />
+                  <Button 
+                    onClick={handleClearData}
+                    variant="outline" 
+                    size="sm"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Limpar Dados
+                  </Button>
+                </>
               )}
               <Button 
                 onClick={handleSignOut}
