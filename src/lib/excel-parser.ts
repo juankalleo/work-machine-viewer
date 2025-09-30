@@ -15,15 +15,34 @@ export function parseExcelFile(file: File): Promise<EquipmentData> {
         
         // Parse each worksheet
         workbook.SheetNames.forEach((sheetName) => {
+          console.log('Processando planilha:', sheetName);
           const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
           
-          parseCPUsFromSheet(jsonData, cpus);
-          parseMonitorsFromSheet(jsonData, monitors);
+          // Tentar diferentes métodos de parsing
+          try {
+            // Método 1: JSON com header
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+            parseCPUsFromSheet(jsonData, cpus, sheetName);
+            parseMonitorsFromSheet(jsonData, monitors, sheetName);
+          } catch (sheetError) {
+            console.warn('Erro ao processar planilha', sheetName, ':', sheetError);
+            
+            // Método 2: Tentar parsing direto por objeto
+            try {
+              const objData = XLSX.utils.sheet_to_json(worksheet) as any[];
+              parseObjectData(objData, cpus, monitors, sheetName);
+            } catch (objError) {
+              console.warn('Erro no parsing por objeto:', objError);
+            }
+          }
         });
+        
+        console.log('CPUs encontradas:', cpus.length);
+        console.log('Monitores encontrados:', monitors.length);
         
         resolve({ cpus, monitors });
       } catch (error) {
+        console.error('Erro geral no parsing:', error);
         reject(error);
       }
     };
@@ -33,7 +52,59 @@ export function parseExcelFile(file: File): Promise<EquipmentData> {
   });
 }
 
-function parseCPUsFromSheet(data: any[][], cpus: CPU[]) {
+// Nova função para parsing por objeto (quando a planilha tem cabeçalhos)
+function parseObjectData(data: any[], cpus: CPU[], monitors: Monitor[], sheetName: string) {
+  console.log('Parsing por objeto, dados encontrados:', data.length);
+  
+  data.forEach((row, index) => {
+    // Tentar detectar se é uma CPU baseado nos campos
+    if (row && typeof row === 'object') {
+      const keys = Object.keys(row).map(k => k.toLowerCase());
+      
+      // Procurar por campos típicos de CPU
+      if (keys.some(k => k.includes('cpu') || k.includes('processador') || k.includes('nomenclatura') || k.includes('marca'))) {
+        const cpu: CPU = {
+          id: `imported-${sheetName}-${index}-${Date.now()}-${Math.random()}`,
+          item: parseNumber(row.Item || row.item || index + 1),
+          nomenclatura: parseString(row.Nomenclatura || row.nomenclatura || row.Nome || row.nome || ''),
+          tombamento: parseString(row.Tombamento || row.tombamento || row.Tombo || row.tombo || ''),
+          e_estado: parseString(row['E-estado'] || row['E Estado'] || row.Estado || row.estado || row.Status || row.status || ''),
+          marca_modelo: parseString(row['Marca/Modelo'] || row.Marca || row.marca || row.Modelo || row.modelo || ''),
+          processador: parseString(row.Processador || row.processador || row.CPU || row.cpu || ''),
+          memoria_ram: parseString(row['Memória RAM'] || row['Memoria RAM'] || row['RAM'] || row.ram || ''),
+          hd: parseString(row.HD || row.hd || '') || null,
+          ssd: parseString(row.SSD || row.ssd || '') || null,
+          sistema_operacional: parseString(row['Sistema Operacional'] || row.SO || row.so || row.Windows || ''),
+          no_dominio: parseString(row['No Domínio'] || row.Dominio || row.dominio || 'SIM'),
+          data_formatacao: parseString(row['Data Formatação'] || row['Data Formatacao'] || '') || null,
+          responsavel: parseString(row.Responsável || row.responsavel || row.Resp || ''),
+          desfazimento: parseString(row.Desfazimento || row.desfazimento || '') || null,
+          departamento: parseString(row.Departamento || row.departamento || row.Depto || sheetName || 'TI')
+        };
+        
+        // Só adicionar se tiver dados mínimos
+        if (cpu.nomenclatura || cpu.marca_modelo || cpu.processador) {
+          cpus.push(cpu);
+          console.log('CPU adicionada:', cpu.nomenclatura);
+        }
+      }
+    }
+  });
+}
+
+// Funções auxiliares para parsing
+function parseString(value: any): string {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
+
+function parseNumber(value: any): number {
+  if (value === null || value === undefined) return 0;
+  const num = Number(value);
+  return isNaN(num) ? 0 : num;
+}
+
+function parseCPUsFromSheet(data: any[][], cpus: CPU[], sheetName?: string) {
   let currentDepartment = '';
   let inCPUSection = false;
   
@@ -90,7 +161,7 @@ function parseCPUsFromSheet(data: any[][], cpus: CPU[]) {
   }
 }
 
-function parseMonitorsFromSheet(data: any[][], monitors: Monitor[]) {
+function parseMonitorsFromSheet(data: any[][], monitors: Monitor[], sheetName?: string) {
   let currentDepartment = '';
   let inMonitorSection = false;
   
@@ -151,7 +222,7 @@ export const sampleData: EquipmentData = {
       item: 1,
       nomenclatura: 'DER-GTI018',
       tombamento: '12018',
-      e_estado: 'RASURADO',
+      e_estado: '210000512',
       marca_modelo: 'DELL OptiPlex 7040',
       processador: 'Intel Core I5-6500',
       memoria_ram: '20GB',
@@ -171,7 +242,7 @@ export const sampleData: EquipmentData = {
       item: 1,
       tombamento: '',
       numero_serie: 'BR-OMNV2T-TVBOO-OA9-2L9B-AO9',
-      e_estado: '210,000,509',
+      e_estado: '210000509',
       modelo: 'DELL P2319Hc',
       polegadas: '23',
       observacao: null,

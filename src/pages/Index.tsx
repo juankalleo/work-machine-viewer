@@ -2,11 +2,15 @@ import { Navigate } from 'react-router-dom';
 import { Dashboard } from '@/components/Dashboard';
 import { AddEquipmentDialog } from '@/components/AddEquipmentDialog';
 import { EditEquipmentDialog } from '@/components/EditEquipmentDialog';
+import { FileImporter } from '@/components/FileImporter';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEquipment } from '@/hooks/useEquipment';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { exportToExcel } from '@/lib/excel-exporter';
+import { downloadExcelTemplate } from '@/lib/excel-template';
+import { EquipmentData } from '@/types/equipment';
 import { 
   Monitor, 
   Upload, 
@@ -19,7 +23,8 @@ import {
   LogOut,
   User,
   Shield,
-  Download
+  Download,
+  FileText
 } from 'lucide-react';
 
 const Index = () => {
@@ -87,11 +92,141 @@ const Index = () => {
     await signOut();
   };
 
-  const handleExportToExcel = () => {
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "Exportação para Excel será implementada em breve.",
-    });
+  const handleDataImported = async (importedData: EquipmentData) => {
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Adicionar todas as CPUs importadas
+      for (const cpu of importedData.cpus) {
+        try {
+          // Usar addCPU do hook que já faz a validação e atualização do estado
+          const success = await addCPU({
+            item: cpu.item,
+            nomenclatura: cpu.nomenclatura,
+            tombamento: cpu.tombamento,
+            e_estado: cpu.e_estado,
+            marca_modelo: cpu.marca_modelo,
+            processador: cpu.processador,
+            memoria_ram: cpu.memoria_ram,
+            hd: cpu.hd,
+            ssd: cpu.ssd,
+            sistema_operacional: cpu.sistema_operacional,
+            no_dominio: cpu.no_dominio,
+            data_formatacao: cpu.data_formatacao,
+            responsavel: cpu.responsavel,
+            desfazimento: cpu.desfazimento,
+            departamento: cpu.departamento
+          });
+          
+          if (success) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (cpuError) {
+          console.error('Erro ao importar CPU:', cpu.nomenclatura, cpuError);
+          errorCount++;
+        }
+      }
+      
+      // Recarregar dados após importação
+      await fetchAllEquipment();
+      
+      if (errorCount === 0) {
+        toast({
+          title: "Importação concluída!",
+          description: `${successCount} equipamentos importados com sucesso.`,
+        });
+      } else {
+        toast({
+          title: `Importação parcial`,
+          description: `${successCount} equipamentos importados, ${errorCount} falharam.`,
+          variant: errorCount > successCount ? "destructive" : "default",
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao importar dados:', error);
+      toast({
+        title: "Erro na importação",
+        description: "Não foi possível importar os dados.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addMonitor = async (monitorData: any): Promise<boolean> => {
+    try {
+      const { createMonitor } = await import('@/lib/storage');
+      const newMonitor = createMonitor(monitorData);
+      
+      // Recarregar dados após adição
+      await fetchAllEquipment();
+      
+      toast({
+        title: "Monitor adicionado",
+        description: "Monitor adicionado com sucesso!",
+      });
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({
+        title: "Erro ao adicionar monitor",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadExcelTemplate();
+      toast({
+        title: "Template baixado!",
+        description: "Template Excel para importação foi baixado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao baixar template:', error);
+      toast({
+        title: "Erro ao baixar template",
+        description: "Não foi possível gerar o template Excel.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportToExcel = async () => {
+    if (!equipmentData || equipmentData.cpus.length === 0) {
+      toast({
+        title: "Nenhum dado para exportar",
+        description: "Não há equipamentos para exportar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Preparar dados para exportação (adicionar array vazio para monitores já que não temos na estrutura atual)
+      const dataToExport = {
+        cpus: equipmentData.cpus,
+        monitors: [] // Array vazio já que não temos monitores na estrutura atual
+      };
+      
+      await exportToExcel(dataToExport, 'equipamentos_der_sesut');
+      
+      toast({
+        title: "Exportação concluída",
+        description: `${equipmentData.cpus.length} equipamentos exportados com sucesso!`,
+      });
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados para Excel.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
@@ -202,7 +337,16 @@ const Index = () => {
               </Button>
               {isAdmin() && (
                 <>
-                  <AddEquipmentDialog onAddCPU={addCPU} />
+                  <Button 
+                    onClick={handleDownloadTemplate}
+                    variant="outline" 
+                    size="sm"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Template Excel
+                  </Button>
+                  <FileImporter onDataImported={handleDataImported} />
+                  <AddEquipmentDialog onAddCPU={addCPU} onAddMonitor={addMonitor} />
                   <Button 
                     onClick={handleClearData}
                     variant="outline" 
@@ -249,7 +393,7 @@ const Index = () => {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Equipamentos</h2>
                 {isAdmin() && (
-                  <AddEquipmentDialog onAddCPU={addCPU} />
+                  <AddEquipmentDialog onAddCPU={addCPU} onAddMonitor={addMonitor} />
                 )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -279,7 +423,7 @@ const Index = () => {
                     </div>
                     <p className="text-sm text-gray-600">{cpu.marca_modelo}</p>
                     <p className="text-sm text-gray-600">Departamento: {cpu.departamento}</p>
-                    <p className="text-sm text-gray-600">Estado: {cpu.e_estado}</p>
+                    <p className="text-sm text-gray-600">E-estado: {cpu.e_estado}</p>
                     <p className="text-sm text-gray-600">Responsável: {cpu.responsavel}</p>
                   </div>
                 ))}
