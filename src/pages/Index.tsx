@@ -351,7 +351,7 @@ const Index = () => {
               <Database className="h-8 w-8 mx-auto mb-3 text-dashboard-success" />
               <h3 className="font-semibold mb-2">Banco de Dados</h3>
               <p className="text-sm text-muted-foreground">
-                Dados armazenados com segurança no Supabase
+                Dados armazenados com segurança no MySQL
               </p>
             </div>
             <div className="text-center p-6 rounded-lg bg-gradient-card shadow-card">
