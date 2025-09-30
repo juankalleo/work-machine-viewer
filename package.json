@@ -9,13 +9,9 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "db:setup": "./setup-simple.sh",
+    "db:migrate": "mysql -u root -p$DB_PASSWORD -h $DB_HOST $DB_NAME < migrations/init.sql",
     "db:test": "node -e \"require('./src/lib/database').testConnection()\"",
-    "db:migrate": "PGPASSWORD=postgres psql -h localhost -U postgres -d work_machine_viewer -f migrations/init.sql",
-    "db:view": "./ver-dados.sh",
-    "db:connect": "psql -h localhost -U postgres -d work_machine_viewer",
-    "db:users": "psql -h localhost -U postgres -d work_machine_viewer -c \"SELECT * FROM users;\"",
-    "db:cpus": "psql -h localhost -U postgres -d work_machine_viewer -c \"SELECT * FROM cpus;\""
+    "db:connect": "mysql -u $DB_USER -p$DB_PASSWORD -h $DB_HOST $DB_NAME"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
