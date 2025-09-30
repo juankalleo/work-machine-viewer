@@ -13,36 +13,53 @@ export function parseExcelFile(file: File): Promise<EquipmentData> {
         const cpus: CPU[] = [];
         const monitors: Monitor[] = [];
         
+        console.log('📊 Arquivo Excel carregado. Planilhas encontradas:', workbook.SheetNames);
+        
         // Parse each worksheet
         workbook.SheetNames.forEach((sheetName) => {
-          console.log('Processando planilha:', sheetName);
+          console.log(`\n🔍 Processando planilha: "${sheetName}"`);
           const worksheet = workbook.Sheets[sheetName];
           
-          // Tentar diferentes métodos de parsing
+          // Sempre tentar o método de objeto primeiro (mais confiável para planilhas modernas)
           try {
-            // Método 1: JSON com header
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-            parseCPUsFromSheet(jsonData, cpus, sheetName);
-            parseMonitorsFromSheet(jsonData, monitors, sheetName);
-          } catch (sheetError) {
-            console.warn('Erro ao processar planilha', sheetName, ':', sheetError);
+            console.log('📋 Tentando parsing por objeto (com cabeçalhos)...');
+            const objData = XLSX.utils.sheet_to_json(worksheet) as any[];
+            console.log('✅ Parsing por objeto bem-sucedido. Linhas encontradas:', objData.length);
             
-            // Método 2: Tentar parsing direto por objeto
-            try {
-              const objData = XLSX.utils.sheet_to_json(worksheet) as any[];
+            if (objData.length > 0) {
               parseObjectData(objData, cpus, monitors, sheetName);
-            } catch (objError) {
-              console.warn('Erro no parsing por objeto:', objError);
+            }
+          } catch (objError) {
+            console.warn('❌ Erro no parsing por objeto:', objError);
+            
+            // Método fallback: JSON com header array
+            try {
+              console.log('📋 Tentando parsing com array de cabeçalhos...');
+              const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+              console.log('✅ Parsing com array bem-sucedido. Linhas encontradas:', jsonData.length);
+              
+              parseCPUsFromSheet(jsonData, cpus, sheetName);
+              parseMonitorsFromSheet(jsonData, monitors, sheetName);
+            } catch (sheetError) {
+              console.error('❌ Erro ao processar planilha', sheetName, ':', sheetError);
             }
           }
         });
         
-        console.log('CPUs encontradas:', cpus.length);
-        console.log('Monitores encontrados:', monitors.length);
+        console.log('\n📈 Resultado final do parsing:');
+        console.log('  ✅ CPUs encontradas:', cpus.length);
+        console.log('  ✅ Monitores encontrados:', monitors.length);
+        
+        if (cpus.length > 0) {
+          console.log('\n🖥️  Amostra das CPUs importadas:');
+          cpus.slice(0, 3).forEach((cpu, i) => {
+            console.log(`    ${i + 1}. ${cpu.nomenclatura || cpu.marca_modelo || cpu.processador || 'CPU sem nome'} (${cpu.departamento})`);
+          });
+        }
         
         resolve({ cpus, monitors });
       } catch (error) {
-        console.error('Erro geral no parsing:', error);
+        console.error('❌ Erro geral no parsing:', error);
         reject(error);
       }
     };
@@ -55,39 +72,136 @@ export function parseExcelFile(file: File): Promise<EquipmentData> {
 // Nova função para parsing por objeto (quando a planilha tem cabeçalhos)
 function parseObjectData(data: any[], cpus: CPU[], monitors: Monitor[], sheetName: string) {
   console.log('Parsing por objeto, dados encontrados:', data.length);
+  console.log('Primeira linha de dados:', data[0]);
+  console.log('Chaves da primeira linha:', data[0] ? Object.keys(data[0]) : 'Nenhuma');
   
   data.forEach((row, index) => {
     // Tentar detectar se é uma CPU baseado nos campos
     if (row && typeof row === 'object') {
-      const keys = Object.keys(row).map(k => k.toLowerCase());
+      const keys = Object.keys(row);
+      const keysLower = keys.map(k => k.toLowerCase());
+      console.log(`Linha ${index}: chaves encontradas:`, keys);
+      console.log(`Linha ${index}: valores:`, Object.values(row));
       
-      // Procurar por campos típicos de CPU
-      if (keys.some(k => k.includes('cpu') || k.includes('processador') || k.includes('nomenclatura') || k.includes('marca'))) {
-        const cpu: CPU = {
-          id: `imported-${sheetName}-${index}-${Date.now()}-${Math.random()}`,
-          item: parseNumber(row.Item || row.item || index + 1),
-          nomenclatura: parseString(row.Nomenclatura || row.nomenclatura || row.Nome || row.nome || ''),
-          tombamento: parseString(row.Tombamento || row.tombamento || row.Tombo || row.tombo || ''),
-          e_estado: parseString(row['E-estado'] || row['E Estado'] || row.Estado || row.estado || row.Status || row.status || ''),
-          marca_modelo: parseString(row['Marca/Modelo'] || row.Marca || row.marca || row.Modelo || row.modelo || ''),
-          processador: parseString(row.Processador || row.processador || row.CPU || row.cpu || ''),
-          memoria_ram: parseString(row['Memória RAM'] || row['Memoria RAM'] || row['RAM'] || row.ram || ''),
-          hd: parseString(row.HD || row.hd || '') || null,
-          ssd: parseString(row.SSD || row.ssd || '') || null,
-          sistema_operacional: parseString(row['Sistema Operacional'] || row.SO || row.so || row.Windows || ''),
-          no_dominio: parseString(row['No Domínio'] || row.Dominio || row.dominio || 'SIM'),
-          data_formatacao: parseString(row['Data Formatação'] || row['Data Formatacao'] || '') || null,
-          responsavel: parseString(row.Responsável || row.responsavel || row.Resp || ''),
-          desfazimento: parseString(row.Desfazimento || row.desfazimento || '') || null,
-          departamento: parseString(row.Departamento || row.departamento || row.Depto || sheetName || 'TI')
+      // Expandir critérios de detecção - tornar mais flexível
+      const isCPURow = (
+        // Verificar se há pelo menos uma chave indicativa de CPU
+        keysLower.some(k => 
+          k.includes('cpu') || 
+          k.includes('processador') || 
+          k.includes('nomenclatura') || 
+          k.includes('marca') ||
+          k.includes('modelo') ||
+          k.includes('tombamento') ||
+          k.includes('tombo') ||
+          k.includes('responsavel') ||
+          k.includes('resp') ||
+          k.includes('departamento') ||
+          k.includes('depto') ||
+          k.includes('item') ||
+          k.includes('estado') ||
+          k.includes('memoria') ||
+          k.includes('ram') ||
+          k.includes('hd') ||
+          k.includes('ssd') ||
+          k.includes('sistema') ||
+          k.includes('dominio')
+        ) ||
+        // OU se há valores não vazios em campos típicos
+        Object.values(row).some(value => {
+          const str = String(value || '').toLowerCase();
+          return str.includes('cpu') || 
+                 str.includes('intel') || 
+                 str.includes('amd') || 
+                 str.includes('gb') ||
+                 str.includes('windows') ||
+                 str.includes('linux') ||
+                 str.includes('ativo') ||
+                 str.includes('inativo');
+        })
+      );
+      
+      console.log(`Linha ${index}: detectado como CPU?`, isCPURow);
+      
+      if (isCPURow) {
+        // Mapear campos com busca mais flexível
+        const getFieldValue = (possibleKeys: string[]) => {
+          for (const possibleKey of possibleKeys) {
+            // Busca exata
+            if (row[possibleKey] !== undefined) {
+              return row[possibleKey];
+            }
+            // Busca case-insensitive
+            const foundKey = keys.find(k => k.toLowerCase() === possibleKey.toLowerCase());
+            if (foundKey && row[foundKey] !== undefined) {
+              return row[foundKey];
+            }
+            // Busca parcial
+            const partialKey = keys.find(k => k.toLowerCase().includes(possibleKey.toLowerCase()));
+            if (partialKey && row[partialKey] !== undefined) {
+              return row[partialKey];
+            }
+          }
+          return null;
         };
         
-        // Só adicionar se tiver dados mínimos
-        if (cpu.nomenclatura || cpu.marca_modelo || cpu.processador) {
+        const cpu: CPU = {
+          id: `imported-${sheetName}-${index}-${Date.now()}-${Math.random()}`,
+          item: parseNumber(getFieldValue(['Item', 'item', 'ITEM']) || index + 1),
+          nomenclatura: parseString(getFieldValue(['Nomenclatura', 'nomenclatura', 'Nome', 'nome', 'NOMENCLATURA', 'NOME']) || ''),
+          tombamento: parseString(getFieldValue(['Tombamento', 'tombamento', 'Tombo', 'tombo', 'TOMBAMENTO', 'TOMBO']) || ''),
+          e_estado: parseString(getFieldValue(['E-estado', 'E Estado', 'Estado', 'estado', 'Status', 'status', 'ESTADO', 'STATUS']) || 'Ativo'),
+          marca_modelo: parseString(getFieldValue(['Marca/Modelo', 'Marca_Modelo', 'Marca', 'marca', 'Modelo', 'modelo', 'MARCA', 'MODELO']) || ''),
+          processador: parseString(getFieldValue(['Processador', 'processador', 'CPU', 'cpu', 'PROCESSADOR', 'Processor']) || ''),
+          memoria_ram: parseString(getFieldValue(['Memória RAM', 'Memoria RAM', 'Memoria_RAM', 'RAM', 'ram', 'MEMORIA', 'Memoria', 'memoria']) || ''),
+          hd: parseString(getFieldValue(['HD', 'hd', 'Hard Drive', 'hard_drive', 'Disco']) || '') || null,
+          ssd: parseString(getFieldValue(['SSD', 'ssd', 'Solid State', 'solid_state']) || '') || null,
+          sistema_operacional: parseString(getFieldValue(['Sistema Operacional', 'Sistema_Operacional', 'SO', 'so', 'Windows', 'windows', 'OS', 'os', 'SISTEMA']) || ''),
+          no_dominio: parseString(getFieldValue(['No Domínio', 'No_Dominio', 'Dominio', 'dominio', 'Domain', 'DOMINIO']) || 'NÃO'),
+          data_formatacao: parseString(getFieldValue(['Data Formatação', 'Data_Formatacao', 'DataFormatacao', 'Formatacao']) || '') || null,
+          responsavel: parseString(getFieldValue(['Responsável', 'Responsavel', 'responsavel', 'Resp', 'resp', 'RESPONSAVEL']) || ''),
+          desfazimento: parseString(getFieldValue(['Desfazimento', 'desfazimento', 'DESFAZIMENTO']) || '') || null,
+          departamento: parseString(getFieldValue(['Departamento', 'departamento', 'Depto', 'depto', 'DEPARTAMENTO']) || sheetName || 'TI')
+        };
+        
+        // Validação mais permissiva - pelo menos um campo principal deve ter valor
+        const hasMinimalData = (
+          (cpu.nomenclatura && cpu.nomenclatura.trim() !== '') || 
+          (cpu.marca_modelo && cpu.marca_modelo.trim() !== '') || 
+          (cpu.processador && cpu.processador.trim() !== '') ||
+          (cpu.tombamento && cpu.tombamento.trim() !== '') ||
+          (cpu.responsavel && cpu.responsavel.trim() !== '') ||
+          (cpu.memoria_ram && cpu.memoria_ram.trim() !== '') ||
+          (cpu.sistema_operacional && cpu.sistema_operacional.trim() !== '')
+        );
+        
+        console.log('Dados extraídos da CPU:', {
+          nomenclatura: cpu.nomenclatura,
+          marca_modelo: cpu.marca_modelo,
+          processador: cpu.processador,
+          tombamento: cpu.tombamento,
+          responsavel: cpu.responsavel,
+          hasMinimalData: hasMinimalData
+        });
+        
+        if (hasMinimalData) {
           cpus.push(cpu);
-          console.log('CPU adicionada:', cpu.nomenclatura);
+          console.log('✅ CPU adicionada:', cpu.nomenclatura || cpu.marca_modelo || cpu.processador || `CPU-${index}`);
+        } else {
+          console.log('❌ CPU ignorada - dados insuficientes:', {
+            nomenclatura: cpu.nomenclatura,
+            marca_modelo: cpu.marca_modelo,
+            processador: cpu.processador,
+            tombamento: cpu.tombamento,
+            responsavel: cpu.responsavel,
+            rawRow: row
+          });
         }
+      } else {
+        console.log(`Linha ${index}: não detectado como CPU, ignorando`);
       }
+    } else {
+      console.log(`Linha ${index}: row inválido:`, typeof row, row);
     }
   });
 }
@@ -153,9 +267,20 @@ function parseCPUsFromSheet(data: any[][], cpus: CPU[], sheetName?: string) {
         departamento: currentDepartment
       };
       
-      // Only add if it has meaningful data
-      if (cpu.nomenclatura || cpu.marca_modelo) {
+      // Only add if it has meaningful data - more flexible validation
+      const hasArrayData = (
+        cpu.nomenclatura.trim() !== '' || 
+        cpu.marca_modelo.trim() !== '' || 
+        cpu.processador.trim() !== '' ||
+        cpu.tombamento.trim() !== '' ||
+        cpu.responsavel.trim() !== ''
+      );
+      
+      if (hasArrayData) {
         cpus.push(cpu);
+        console.log('CPU adicionada (array):', cpu.nomenclatura || cpu.marca_modelo || 'CPU sem nome');
+      } else {
+        console.log('CPU ignorada (array) - dados insuficientes');
       }
     }
   }
@@ -214,42 +339,8 @@ function parseMonitorsFromSheet(data: any[][], monitors: Monitor[], sheetName?: 
   }
 }
 
-// Sample data for testing
+// Dados limpos - sistema inicia vazio
 export const sampleData: EquipmentData = {
-  cpus: [
-    {
-      id: '1',
-      item: 1,
-      nomenclatura: 'DER-GTI018',
-      tombamento: '12018',
-      e_estado: '210000512',
-      marca_modelo: 'DELL OptiPlex 7040',
-      processador: 'Intel Core I5-6500',
-      memoria_ram: '20GB',
-      hd: '1TB',
-      ssd: null,
-      sistema_operacional: 'Windows 11 PRO',
-      no_dominio: 'SIM',
-      data_formatacao: '23/09/2025',
-      responsavel: 'JUAN KALLEO',
-      desfazimento: null,
-      departamento: 'DER-GTI'
-    }
-  ],
-  monitors: [
-    {
-      id: '1',
-      item: 1,
-      tombamento: '',
-      numero_serie: 'BR-OMNV2T-TVBOO-OA9-2L9B-AO9',
-      e_estado: '210000509',
-      modelo: 'DELL P2319Hc',
-      polegadas: '23',
-      observacao: null,
-      data_verificacao: '24/09/2025',
-      responsavel: 'Diego Charles',
-      desfazimento: null,
-      departamento: 'DER-GTI'
-    }
-  ]
+  cpus: [],
+  monitors: []
 };

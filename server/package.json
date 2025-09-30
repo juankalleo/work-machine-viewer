@@ -1,0 +1,30 @@
+{
+  "name": "work-machine-viewer-backend",
+  "version": "1.0.0",
+  "description": "Backend API para compartilhar dados do work-machine-viewer via PostgreSQL",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "install-deps": "npm install express cors pg nodemon"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "mysql2": "^3.15.1",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "keywords": [
+    "express",
+    "postgresql",
+    "api",
+    "backend",
+    "equipment",
+    "inventory"
+  ],
+  "author": "DER-SESUT",
+  "license": "MIT"
+}

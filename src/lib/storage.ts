@@ -98,90 +98,34 @@ function initializeData(): void {
     setData(USERS_KEY, users);
   }
 
-  // Criar alguns equipamentos de exemplo se não existirem
-  if (cpus.length === 0) {
-    const sampleCPUs: CPU[] = [
-      {
-        id: generateId(),
-        item: 1,
-        nomenclatura: 'CPU-001',
-        tombamento: 'TMB001',
-        marca_modelo: 'Dell OptiPlex 7090',
-        processador: 'Intel Core i5-11500',
-        memoria_ram: '8GB DDR4',
-        hd: '1TB SATA',
-        ssd: null,
-        sistema_operacional: 'Windows 11 Pro',
-        no_dominio: 'DOMINIO01',
-        departamento: 'TI',
-        responsavel: 'João Silva',
-        e_estado: '210000509',
-        data_formatacao: null,
-        desfazimento: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      {
-        id: generateId(),
-        item: 2,
-        nomenclatura: 'CPU-002',
-        tombamento: 'TMB002',
-        marca_modelo: 'HP EliteDesk 800 G8',
-        processador: 'Intel Core i7-11700',
-        memoria_ram: '16GB DDR4',
-        hd: null,
-        ssd: '512GB NVMe',
-        sistema_operacional: 'Windows 11 Pro',
-        no_dominio: 'DOMINIO01',
-        departamento: 'TI',
-        responsavel: 'Maria Santos',
-        e_estado: '210000510',
-        data_formatacao: null,
-        desfazimento: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-    ];
-    setData(CPUS_KEY, sampleCPUs);
-  }
+  // CPUs serão adicionados pelo usuário - não criar dados de exemplo
 
-  // Criar alguns monitores de exemplo se não existirem
-  if (monitors.length === 0) {
-    const sampleMonitors: Monitor[] = [
-      {
-        id: generateId(),
-        item: 1,
-        tombamento: 'TMB003',
-        numero_serie: 'BR-OMNV2T-TVBOO-OA9-2L9B-AO9',
-        e_estado: '210000509',
-        modelo: 'DELL P2319Hc',
-        polegadas: '23',
-        observacao: null,
-        data_verificacao: '2025-09-30',
-        responsavel: 'Diego Charles',
-        desfazimento: null,
-        departamento: 'TI',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      {
-        id: generateId(),
-        item: 2,
-        tombamento: 'TMB004',
-        numero_serie: 'LG-24MK430H-B',
-        e_estado: '210000511',
-        modelo: 'LG 24MK430H',
-        polegadas: '24',
-        observacao: 'Monitor Full HD',
-        data_verificacao: '2025-09-30',
-        responsavel: 'Ana Paula',
-        desfazimento: null,
-        departamento: 'Administração',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-    ];
-    setData(MONITORS_KEY, sampleMonitors);
+  // Monitores serão adicionados pelo usuário - não criar dados de exemplo
+}
+
+// Função para limpar dados de exemplo (usar apenas se necessário)
+export function clearSampleData(): void {
+  // Limpa apenas se existirem dados que pareçam ser de exemplo
+  const cpus = getAllCPUs();
+  const monitors = getAllMonitors();
+  
+  // Remove CPUs de exemplo (identificadas por nomenclatura)
+  const filteredCPUs = cpus.filter(cpu => 
+    !cpu.nomenclatura.startsWith('CPU-0') && 
+    !cpu.tombamento.startsWith('TMB0')
+  );
+  
+  // Remove monitores de exemplo (identificados por tombamento)
+  const filteredMonitors = monitors.filter(monitor => 
+    !monitor.tombamento.startsWith('TMB0')
+  );
+  
+  if (filteredCPUs.length !== cpus.length) {
+    setData(CPUS_KEY, filteredCPUs);
+  }
+  
+  if (filteredMonitors.length !== monitors.length) {
+    setData(MONITORS_KEY, filteredMonitors);
   }
 }
 

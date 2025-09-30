@@ -1,19 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  getAllCPUs, 
-  getCPUById, 
-  createCPU, 
-  updateCPU, 
-  deleteCPU, 
-  getCPUsByDepartment, 
-  getCPUsByState, 
-  getCPUStats,
-  CPU
-} from '@/lib/storage';
+import { CPU, Monitor } from '@/lib/storage';
+import { db } from '@/lib/database';
 import { useToast } from '@/hooks/use-toast';
 
 export interface EquipmentData {
   cpus: CPU[];
+  monitors: Monitor[];
 }
 
 export function useEquipment() {
@@ -24,10 +16,20 @@ export function useEquipment() {
 
   const fetchCPUs = useCallback(async (): Promise<CPU[]> => {
     try {
-      const cpus = await getAllCPUs();
+      const cpus = await db.getAllCPUs();
       return cpus;
     } catch (error) {
       console.error('Erro ao buscar CPUs:', error);
+      throw error;
+    }
+  }, []);
+
+  const fetchMonitors = useCallback(async (): Promise<Monitor[]> => {
+    try {
+      const monitors = await db.getAllMonitors();
+      return monitors;
+    } catch (error) {
+      console.error('Erro ao buscar monitores:', error);
       throw error;
     }
   }, []);
@@ -37,8 +39,11 @@ export function useEquipment() {
       setIsLoading(true);
       setError(null);
 
-      const cpus = await fetchCPUs();
-      setEquipmentData({ cpus });
+      const [cpus, monitors] = await Promise.all([
+        fetchCPUs(),
+        fetchMonitors()
+      ]);
+      setEquipmentData({ cpus, monitors });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       setError(errorMessage);
@@ -50,11 +55,11 @@ export function useEquipment() {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchCPUs, toast]);
+  }, [fetchCPUs, fetchMonitors, toast]);
 
   const addCPU = useCallback(async (cpuData: Omit<CPU, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
     try {
-      const newCPU = createCPU(cpuData);
+      const newCPU = await db.createCPU(cpuData);
       if (equipmentData) {
         setEquipmentData({
           ...equipmentData,
@@ -79,7 +84,7 @@ export function useEquipment() {
 
   const editCPU = useCallback(async (id: string, cpuData: Partial<Omit<CPU, 'id' | 'created_at'>>): Promise<boolean> => {
     try {
-      const updatedCPU = updateCPU(id, cpuData);
+      const updatedCPU = await db.updateCPU(id, cpuData);
       if (updatedCPU && equipmentData) {
         setEquipmentData({
           ...equipmentData,
@@ -106,7 +111,7 @@ export function useEquipment() {
 
   const removeCPU = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const success = deleteCPU(id);
+      const success = await db.deleteCPU(id);
       if (success && equipmentData) {
         setEquipmentData({
           ...equipmentData,
@@ -129,44 +134,28 @@ export function useEquipment() {
     }
   }, [equipmentData, toast]);
 
-  const getCPUByIdCallback = useCallback(async (id: string): Promise<CPU | null> => {
+  // Sincronização manual
+  const syncNow = useCallback(async () => {
     try {
-      return getCPUById(id);
+      await db.syncNow();
+      await fetchAllEquipment();
+      toast({
+        title: "Sincronizado",
+        description: "Dados atualizados com sucesso!",
+      });
     } catch (error) {
-      console.error('Erro ao buscar CPU:', error);
-      return null;
+      const errorMessage = error instanceof Error ? error.message : 'Erro na sincronização';
+      toast({
+        title: "Erro na sincronização",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
-  }, []);
+  }, [fetchAllEquipment, toast]);
 
-  const getCPUsByDepartmentCallback = useCallback(async (department: string): Promise<CPU[]> => {
-    try {
-      return getCPUsByDepartment(department);
-    } catch (error) {
-      console.error('Erro ao buscar CPUs por departamento:', error);
-      return [];
-    }
-  }, []);
-
-  const getCPUsByStateCallback = useCallback(async (state: string): Promise<CPU[]> => {
-    try {
-      return getCPUsByState(state);
-    } catch (error) {
-      console.error('Erro ao buscar CPUs por estado:', error);
-      return [];
-    }
-  }, []);
-
-  const getStats = useCallback(async () => {
-    try {
-      return getCPUStats();
-    } catch (error) {
-      console.error('Erro ao buscar estatísticas:', error);
-      return {
-        total: 0,
-        byDepartment: {},
-        byState: {}
-      };
-    }
+  // Status de conexão
+  const getConnectionStatus = useCallback(() => {
+    return db.getConnectionStatus();
   }, []);
 
   useEffect(() => {
@@ -181,9 +170,7 @@ export function useEquipment() {
     addCPU,
     editCPU,
     removeCPU,
-    getCPUById: getCPUByIdCallback,
-    getCPUsByDepartment: getCPUsByDepartmentCallback,
-    getCPUsByState: getCPUsByStateCallback,
-    getStats,
+    syncNow,
+    getConnectionStatus,
   };
 }

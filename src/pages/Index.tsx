@@ -24,7 +24,8 @@ import {
   User,
   Shield,
   Download,
-  FileText
+  FileText,
+  RefreshCw
 } from 'lucide-react';
 
 const Index = () => {
@@ -36,7 +37,8 @@ const Index = () => {
     addCPU,
     editCPU,
     removeCPU,
-    fetchAllEquipment
+    fetchAllEquipment,
+    syncNow
   } = useEquipment();
   const { toast } = useToast();
 
@@ -67,22 +69,21 @@ const Index = () => {
     }
 
     try {
-      // Clear localStorage data
-      localStorage.removeItem('work_machine_cpus');
-      localStorage.removeItem('work_machine_users');
+      const { clearSampleData } = await import('@/lib/storage');
+      clearSampleData();
+      
       // Recarregar dados
       await fetchAllEquipment();
       
       toast({
-        title: "Dados removidos",
-        description: "Todos os dados foram removidos.",
-        variant: "destructive",
+        title: "Dados de exemplo removidos",
+        description: "Máquinas de exemplo foram removidas do sistema.",
       });
     } catch (error) {
       console.error('Error clearing data:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível limpar todos os dados.",
+        description: "Não foi possível limpar os dados de exemplo.",
         variant: "destructive",
       });
     }
@@ -97,59 +98,121 @@ const Index = () => {
       let successCount = 0;
       let errorCount = 0;
       
+      console.log('\n🚀 Iniciando processo de importação:');
+      console.log(`  📊 CPUs para processar: ${importedData.cpus.length}`);
+      console.log(`  📺 Monitores para processar: ${importedData.monitors?.length || 0}`);
+      
+      if (importedData.cpus.length === 0) {
+        toast({
+          title: "Nenhum equipamento encontrado",
+          description: "O arquivo Excel não contém dados válidos de equipamentos. Verifique o formato do arquivo.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Adicionar todas as CPUs importadas
-      for (const cpu of importedData.cpus) {
+      for (const [index, cpu] of importedData.cpus.entries()) {
         try {
-          // Usar addCPU do hook que já faz a validação e atualização do estado
-          const success = await addCPU({
-            item: cpu.item,
+          console.log(`\n🔄 Processando CPU ${index + 1}/${importedData.cpus.length}:`);
+          console.log('  📋 Dados originais:', {
             nomenclatura: cpu.nomenclatura,
-            tombamento: cpu.tombamento,
-            e_estado: cpu.e_estado,
             marca_modelo: cpu.marca_modelo,
-            processador: cpu.processador,
-            memoria_ram: cpu.memoria_ram,
-            hd: cpu.hd,
-            ssd: cpu.ssd,
-            sistema_operacional: cpu.sistema_operacional,
-            no_dominio: cpu.no_dominio,
-            data_formatacao: cpu.data_formatacao,
+            tombamento: cpu.tombamento,
             responsavel: cpu.responsavel,
-            desfazimento: cpu.desfazimento,
             departamento: cpu.departamento
           });
           
+          // Validação prévia dos dados
+          const hasRequiredData = (
+            (cpu.nomenclatura && cpu.nomenclatura.trim()) ||
+            (cpu.marca_modelo && cpu.marca_modelo.trim()) ||
+            (cpu.processador && cpu.processador.trim()) ||
+            (cpu.tombamento && cpu.tombamento.trim())
+          );
+          
+          if (!hasRequiredData) {
+            console.log('  ⚠️ CPU ignorada - nenhum campo principal preenchido');
+            errorCount++;
+            continue;
+          }
+          
+          // Garantir que campos obrigatórios tenham valores válidos
+          const cpuData = {
+            item: cpu.item || (index + 1),
+            nomenclatura: (cpu.nomenclatura || '').trim(),
+            tombamento: (cpu.tombamento || '').trim(),
+            e_estado: (cpu.e_estado || 'Ativo').trim(),
+            marca_modelo: (cpu.marca_modelo || '').trim(),
+            processador: (cpu.processador || '').trim(),
+            memoria_ram: (cpu.memoria_ram || '').trim(),
+            hd: cpu.hd && cpu.hd.trim() ? cpu.hd.trim() : null,
+            ssd: cpu.ssd && cpu.ssd.trim() ? cpu.ssd.trim() : null,
+            sistema_operacional: (cpu.sistema_operacional || '').trim(),
+            no_dominio: (cpu.no_dominio || 'NÃO').trim(),
+            data_formatacao: cpu.data_formatacao && cpu.data_formatacao.trim() ? cpu.data_formatacao.trim() : null,
+            responsavel: (cpu.responsavel || '').trim(),
+            desfazimento: cpu.desfazimento && cpu.desfazimento.trim() ? cpu.desfazimento.trim() : null,
+            departamento: (cpu.departamento || 'TI').trim()
+          };
+          
+          console.log('  🔧 Dados processados:', cpuData);
+          
+          // Usar addCPU do hook que já faz a validação e atualização do estado
+          const success = await addCPU(cpuData);
+          
           if (success) {
             successCount++;
+            const displayName = cpuData.nomenclatura || cpuData.marca_modelo || cpuData.processador || `CPU-${index + 1}`;
+            console.log('  ✅ CPU importada:', displayName);
           } else {
             errorCount++;
+            console.error('  ❌ Falha ao salvar CPU no sistema');
           }
         } catch (cpuError) {
-          console.error('Erro ao importar CPU:', cpu.nomenclatura, cpuError);
+          console.error('  💥 Erro ao processar CPU:', cpuError);
           errorCount++;
         }
       }
       
+      // TODO: Adicionar suporte para monitores quando necessário
+      // if (importedData.monitors && importedData.monitors.length > 0) {
+      //   // Processar monitores
+      // }
+      
       // Recarregar dados após importação
+      console.log('\n🔄 Recarregando dados do sistema...');
       await fetchAllEquipment();
       
-      if (errorCount === 0) {
+      // Exibir resultado final
+      console.log('\n📈 Resultado da importação:');
+      console.log(`  ✅ Sucessos: ${successCount}`);
+      console.log(`  ❌ Erros: ${errorCount}`);
+      console.log(`  📊 Total processado: ${successCount + errorCount}`);
+      
+      if (errorCount === 0 && successCount > 0) {
         toast({
-          title: "Importação concluída!",
+          title: "Importação concluída! ✅",
           description: `${successCount} equipamentos importados com sucesso.`,
         });
-      } else {
+      } else if (successCount > 0 && errorCount > 0) {
         toast({
-          title: `Importação parcial`,
+          title: `Importação parcial ⚠️`,
           description: `${successCount} equipamentos importados, ${errorCount} falharam.`,
           variant: errorCount > successCount ? "destructive" : "default",
         });
+      } else if (successCount === 0) {
+        toast({
+          title: "Falha na importação ❌",
+          description: "Nenhum equipamento pôde ser importado. Verifique o formato dos dados.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      console.error('Erro ao importar dados:', error);
+      console.error('💥 Erro crítico na importação:', error);
       toast({
         title: "Erro na importação",
-        description: "Não foi possível importar os dados.",
+        description: "Ocorreu um erro inesperado durante a importação.",
         variant: "destructive",
       });
     }
@@ -207,10 +270,10 @@ const Index = () => {
     }
 
     try {
-      // Preparar dados para exportação (adicionar array vazio para monitores já que não temos na estrutura atual)
+      // Preparar dados para exportação
       const dataToExport = {
         cpus: equipmentData.cpus,
-        monitors: [] // Array vazio já que não temos monitores na estrutura atual
+        monitors: equipmentData.monitors || []
       };
       
       await exportToExcel(dataToExport, 'equipamentos_der_sesut');
@@ -317,7 +380,7 @@ const Index = () => {
               <div>
                 <h1 className="text-xl font-bold">DER-SESUT MONITORAMENTO</h1>
                 <p className="text-sm text-muted-foreground">
-                  {equipmentData.cpus.length} CPUs
+                  {equipmentData.cpus.length} CPUs • {equipmentData.monitors?.length || 0} Monitores
                   {user && (
                     <span className="ml-2">
                       • {user.username} {isAdmin() && '(Admin)'}
@@ -327,6 +390,15 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center space-x-2">
+              <Button 
+                onClick={syncNow}
+                variant="outline" 
+                size="sm"
+                title="Sincronizar dados com servidor"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sincronizar
+              </Button>
               <Button 
                 onClick={handleExportToExcel}
                 variant="outline" 
@@ -353,7 +425,7 @@ const Index = () => {
                     size="sm"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Limpar Dados
+                    Remover Exemplos
                   </Button>
                 </>
               )}
