@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { ChartCard } from '@/components/dashboard/ChartCard';
-import { EquipmentData, DepartmentStats, ProcessorStats, OperatingSystemStats } from '@/types/equipment';
+import { EquipmentData } from '@/types/equipment';
 import { 
   Monitor, 
   Cpu, 
@@ -12,235 +11,133 @@ import {
   Calendar,
   AlertTriangle
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 interface DashboardProps {
   data: EquipmentData;
 }
 
-const COLORS = ['hsl(210, 95%, 45%)', 'hsl(200, 95%, 50%)', 'hsl(145, 70%, 45%)', 'hsl(45, 85%, 55%)', 'hsl(0, 75%, 55%)'];
-
 export function Dashboard({ data }: DashboardProps) {
   const stats = useMemo(() => {
     const totalCPUs = data.cpus.length;
-    const totalMonitors = data.monitors.length;
-    const totalEquipment = totalCPUs + totalMonitors;
+    const activeCPUs = data.cpus.filter(cpu => cpu.e_estado === 'Ativo').length;
+    const inactiveCPUs = data.cpus.filter(cpu => cpu.e_estado === 'Inativo').length;
     
     // Department statistics
-    const departmentMap = new Map<string, DepartmentStats>();
-    
-    data.cpus.forEach(cpu => {
+    const departmentStats = data.cpus.reduce((acc, cpu) => {
       const dept = cpu.departamento || 'Sem Departamento';
-      if (!departmentMap.has(dept)) {
-        departmentMap.set(dept, {
-          name: dept,
-          totalCPUs: 0,
-          totalMonitors: 0,
-          cpusAtivos: 0,
-          monitoresAtivos: 0,
-          formatacoes: 0
-        });
+      if (!acc[dept]) {
+        acc[dept] = 0;
       }
-      const stats = departmentMap.get(dept)!;
-      stats.totalCPUs++;
-      if (cpu.e_estado !== 'RASURADO' && cpu.marca_modelo) {
-        stats.cpusAtivos++;
+      acc[dept]++;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // State statistics
+    const stateStats = data.cpus.reduce((acc, cpu) => {
+      const state = cpu.e_estado || 'Desconhecido';
+      if (!acc[state]) {
+        acc[state] = 0;
       }
-      if (cpu.data_formatacao && cpu.data_formatacao !== 'N/T') {
-        stats.formatacoes++;
-      }
-    });
-    
-    data.monitors.forEach(monitor => {
-      const dept = monitor.departamento || 'Sem Departamento';
-      if (!departmentMap.has(dept)) {
-        departmentMap.set(dept, {
-          name: dept,
-          totalCPUs: 0,
-          totalMonitors: 0,
-          cpusAtivos: 0,
-          monitoresAtivos: 0,
-          formatacoes: 0
-        });
-      }
-      const stats = departmentMap.get(dept)!;
-      stats.totalMonitors++;
-      if (monitor.e_estado && monitor.modelo) {
-        stats.monitoresAtivos++;
-      }
-    });
-    
-    const departmentStats = Array.from(departmentMap.values());
-    
-    // Processor statistics
-    const processorMap = new Map<string, number>();
-    data.cpus.forEach(cpu => {
-      if (cpu.processador && cpu.processador !== 'N/T') {
-        const proc = cpu.processador.split(' ').slice(0, 3).join(' '); // Simplify processor names
-        processorMap.set(proc, (processorMap.get(proc) || 0) + 1);
-      }
-    });
-    
-    const processorStats: ProcessorStats[] = Array.from(processorMap.entries())
-      .map(([name, count]) => ({
-        name,
-        count,
-        percentage: Math.round((count / totalCPUs) * 100)
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-    
-    // Operating System statistics
-    const osMap = new Map<string, number>();
-    data.cpus.forEach(cpu => {
-      if (cpu.sistema_operacional && cpu.sistema_operacional !== 'N/T') {
-        osMap.set(cpu.sistema_operacional, (osMap.get(cpu.sistema_operacional) || 0) + 1);
-      }
-    });
-    
-    const osStats: OperatingSystemStats[] = Array.from(osMap.entries())
-      .map(([name, count]) => ({
-        name,
-        count,
-        percentage: Math.round((count / totalCPUs) * 100)
-      }))
-      .sort((a, b) => b.count - a.count);
-    
-    // Recent formatting count (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentFormattings = data.cpus.filter(cpu => {
-      if (!cpu.data_formatacao || cpu.data_formatacao === 'N/T') return false;
-      try {
-        const formatDate = new Date(cpu.data_formatacao.split('/').reverse().join('-'));
-        return formatDate >= thirtyDaysAgo;
-      } catch {
-        return false;
-      }
-    }).length;
-    
+      acc[state]++;
+      return acc;
+    }, {} as Record<string, number>);
+
     return {
       totalCPUs,
-      totalMonitors,
-      totalEquipment,
+      activeCPUs,
+      inactiveCPUs,
       departmentStats,
-      processorStats,
-      osStats,
-      recentFormattings,
-      activeCPUs: data.cpus.filter(cpu => cpu.e_estado !== 'RASURADO' && cpu.marca_modelo).length,
-      activeMonitors: data.monitors.filter(monitor => monitor.e_estado && monitor.modelo).length
+      stateStats
     };
   }, [data]);
 
   return (
     <div className="space-y-6">
-      {/* Overview Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total de CPUs"
           value={stats.totalCPUs}
-          description={`${stats.activeCPUs} ativos`}
           icon={Cpu}
-          variant="info"
+          description="Equipamentos cadastrados"
+          trend={null}
         />
         <StatCard
-          title="Total de Monitores"
-          value={stats.totalMonitors}
-          description={`${stats.activeMonitors} ativos`}
-          icon={Monitor}
-          variant="success"
+          title="CPUs Ativos"
+          value={stats.activeCPUs}
+          icon={TrendingUp}
+          description="Equipamentos em uso"
+          trend={null}
         />
         <StatCard
-          title="Total de Equipamentos"
-          value={stats.totalEquipment}
-          description="CPUs + Monitores"
-          icon={HardDrive}
+          title="CPUs Inativos"
+          value={stats.inactiveCPUs}
+          icon={AlertTriangle}
+          description="Equipamentos fora de uso"
+          trend={null}
         />
         <StatCard
-          title="Formatações Recentes"
-          value={stats.recentFormattings}
-          description="Últimos 30 dias"
-          icon={Calendar}
-          variant="warning"
+          title="Departamentos"
+          value={Object.keys(stats.departmentStats).length}
+          icon={Building}
+          description="Unidades organizacionais"
+          trend={null}
         />
       </div>
 
-      {/* Charts Row */}
+      {/* Department Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Department Distribution */}
-        <ChartCard
-          title="Distribuição por Departamento"
-          description="Equipamentos por setor"
-        >
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={stats.departmentStats}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="totalCPUs" name="CPUs" fill="hsl(210, 95%, 45%)" />
-              <Bar dataKey="totalMonitors" name="Monitores" fill="hsl(200, 95%, 50%)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <div className="bg-dashboard-card rounded-lg p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Building className="h-5 w-5" />
+            Distribuição por Departamento
+          </h3>
+          <div className="space-y-3">
+            {Object.entries(stats.departmentStats).map(([dept, count]) => (
+              <div key={dept} className="flex justify-between items-center">
+                <span className="text-sm font-medium">{dept}</span>
+                <span className="text-sm text-muted-foreground">{count} CPUs</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        {/* Operating System Distribution */}
-        <ChartCard
-          title="Sistemas Operacionais"
-          description="Distribuição de SOs instalados"
-        >
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={stats.osStats}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={120}
-                paddingAngle={2}
-                dataKey="count"
-              >
-                {stats.osStats.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value, name, props) => [`${value} CPUs`, props.payload.name]} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <div className="bg-dashboard-card rounded-lg p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Monitor className="h-5 w-5" />
+            Status dos Equipamentos
+          </h3>
+          <div className="space-y-3">
+            {Object.entries(stats.stateStats).map(([state, count]) => (
+              <div key={state} className="flex justify-between items-center">
+                <span className="text-sm font-medium">{state}</span>
+                <span className="text-sm text-muted-foreground">{count} CPUs</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Memory and Storage Analysis */}
-      <ChartCard
-        title="Análise de Memória RAM"
-        description="Distribuição de configurações de memória"
-      >
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={stats.osStats} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
-            <Tooltip />
-            <Bar dataKey="count" fill="hsl(145, 70%, 45%)" />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
-
-      {/* Department Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {stats.departmentStats.map((dept, index) => (
-          <StatCard
-            key={dept.name}
-            title={dept.name}
-            value={dept.totalCPUs + dept.totalMonitors}
-            description={`${dept.totalCPUs} CPUs, ${dept.totalMonitors} monitores`}
-            icon={Building}
-            variant={index % 2 === 0 ? 'info' : 'success'}
-          />
-        ))}
+      {/* Recent Equipment */}
+      <div className="bg-dashboard-card rounded-lg p-6">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
+          Equipamentos Recentes
+        </h3>
+        <div className="space-y-3">
+          {data.cpus.slice(0, 5).map((cpu) => (
+            <div key={cpu.id} className="flex justify-between items-center p-3 bg-white rounded-lg border">
+              <div>
+                <p className="font-medium">{cpu.nomenclatura}</p>
+                <p className="text-sm text-muted-foreground">{cpu.marca_modelo}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium">{cpu.departamento}</p>
+                <p className="text-sm text-muted-foreground">{cpu.e_estado}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

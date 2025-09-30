@@ -1,164 +1,122 @@
 import { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { User, loginUser, registerUser, getUserById, verifyToken } from '@/lib/auth-simple';
 import { useToast } from '@/hooks/use-toast';
-
-interface Profile {
-  id: string;
-  user_id: string;
-  username: string;
-  role: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Fetch user profile
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
-          
-          setProfile(profileData);
-        } else {
-          setProfile(null);
-        }
-        
+    // Verificar se há token salvo
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded) {
+        fetchUser(decoded.userId);
+      } else {
+        localStorage.removeItem('auth_token');
         setLoading(false);
       }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    } else {
       setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    }
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const fetchUser = async (userId: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const userData = await getUserById(userId);
+      if (userData) {
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar usuário:', error);
+      localStorage.removeItem('auth_token');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      if (error) {
+  const signIn = async (username: string, password: string) => {
+    try {
+      console.log('Tentando fazer login com:', username);
+      const result = await loginUser(username, password);
+      console.log('Resultado do login:', result);
+      
+      if (result.success && result.user && result.token) {
+        localStorage.setItem('auth_token', result.token);
+        setUser(result.user);
+        console.log('Usuário logado:', result.user);
+        toast({
+          title: "Login realizado",
+          description: "Bem-vindo de volta!",
+        });
+        return { success: true };
+      } else {
+        console.log('Erro no login:', result.message);
         toast({
           title: "Erro no login",
-          description: error.message,
+          description: result.message || "Credenciais inválidas",
           variant: "destructive",
         });
-        return { success: false, error };
+        return { success: false, error: result.message };
       }
-
-      return { success: true, data };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('Erro no login:', error);
       toast({
         title: "Erro no login",
-        description: errorMessage,
+        description: "Erro interno do servidor",
         variant: "destructive",
       });
-      return { success: false, error };
+      return { success: false, error: 'Erro interno do servidor' };
     }
   };
 
-  const signUp = async (email: string, password: string, username: string) => {
+  const signUp = async (username: string, email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username },
-          emailRedirectTo: `${window.location.origin}/`
-        }
-      });
-
-      if (error) {
+      const result = await registerUser(username, email, password);
+      if (result.success && result.user && result.token) {
+        localStorage.setItem('auth_token', result.token);
+        setUser(result.user);
+        toast({
+          title: "Cadastro realizado",
+          description: "Conta criada com sucesso!",
+        });
+        return { success: true };
+      } else {
         toast({
           title: "Erro no cadastro",
-          description: error.message,
+          description: result.message || "Erro ao criar conta",
           variant: "destructive",
         });
-        return { success: false, error };
+        return { success: false, error: result.message };
       }
-
-      toast({
-        title: "Cadastro realizado",
-        description: "Verifique seu email para confirmar a conta.",
-      });
-
-      return { success: true, data };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error('Erro no cadastro:', error);
       toast({
         title: "Erro no cadastro",
-        description: errorMessage,
+        description: "Erro interno do servidor",
         variant: "destructive",
       });
-      return { success: false, error };
+      return { success: false, error: 'Erro interno do servidor' };
     }
   };
 
-  const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        toast({
-          title: "Erro ao sair",
-          description: error.message,
-          variant: "destructive",
-        });
-        return { success: false, error };
-      }
-      
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      
-      toast({
-        title: "Logout realizado",
-        description: "Você foi desconectado com sucesso.",
-      });
-      
-      return { success: true };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      toast({
-        title: "Erro ao sair",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return { success: false, error };
-    }
+  const signOut = () => {
+    localStorage.removeItem('auth_token');
+    setUser(null);
+    toast({
+      title: "Logout realizado",
+      description: "Você foi desconectado com sucesso.",
+    });
   };
 
   const isAdmin = () => {
-    return profile?.role === 'admin';
+    return user?.role === 'admin';
   };
 
   return {
     user,
-    session,
-    profile,
     loading,
     signIn,
     signUp,

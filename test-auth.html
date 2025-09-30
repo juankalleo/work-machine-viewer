@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Autenticação</title>
+</head>
+<body>
+    <h1>Teste de Autenticação</h1>
+    <div id="result"></div>
+    
+    <script>
+        // Simular o sistema de autenticação
+        function testAuth() {
+            const result = document.getElementById('result');
+            
+            // Verificar se há dados no localStorage
+            const users = JSON.parse(localStorage.getItem('work_machine_users') || '[]');
+            const token = localStorage.getItem('auth_token');
+            
+            result.innerHTML = `
+                <h2>Status do Sistema:</h2>
+                <p><strong>Usuários no localStorage:</strong> ${users.length}</p>
+                <p><strong>Token de autenticação:</strong> ${token ? 'Presente' : 'Ausente'}</p>
+                <p><strong>Usuários:</strong></p>
+                <ul>
+                    ${users.map(user => `<li>${user.username} (${user.role})</li>`).join('')}
+                </ul>
+            `;
+            
+            // Testar login
+            if (users.length === 0) {
+                result.innerHTML += '<p style="color: red;">❌ Nenhum usuário encontrado. O sistema não foi inicializado.</p>';
+            } else {
+                result.innerHTML += '<p style="color: green;">✅ Sistema inicializado corretamente.</p>';
+            }
+        }
+        
+        // Executar teste
+        testAuth();
+    </script>
+</body>
+</html>

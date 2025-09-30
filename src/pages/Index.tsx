@@ -1,17 +1,12 @@
-import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { FileImporter } from '@/components/FileImporter';
 import { Dashboard } from '@/components/Dashboard';
-import { EquipmentTable } from '@/components/equipment/EquipmentTable';
-import { AddEquipmentDialog } from '@/components/equipment/AddEquipmentDialog';
+import { AddEquipmentDialog } from '@/components/AddEquipmentDialog';
+import { EditEquipmentDialog } from '@/components/EditEquipmentDialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEquipment } from '@/hooks/useEquipment';
 import { useAuth } from '@/hooks/useAuth';
-import { parseExcelFile } from '@/lib/excel-parser';
-import { exportToExcel } from '@/lib/excel-exporter';
 import { useToast } from '@/hooks/use-toast';
-import { EquipmentData } from '@/types/equipment';
 import { 
   Monitor, 
   Upload, 
@@ -28,19 +23,15 @@ import {
 } from 'lucide-react';
 
 const Index = () => {
-  const { user, profile, loading: authLoading, signOut, isAdmin } = useAuth();
+  const { user, loading: authLoading, signOut, isAdmin } = useAuth();
   const { 
     equipmentData, 
     isLoading, 
     error,
     addCPU,
-    addMonitor,
-    updateCPU,
-    updateMonitor,
-    deleteCPU,
-    deleteMonitor,
-    importFromExcel,
-    refetch
+    editCPU,
+    removeCPU,
+    fetchAllEquipment
   } = useEquipment();
   const { toast } = useToast();
 
@@ -60,19 +51,6 @@ const Index = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const handleDataImported = async (data: EquipmentData) => {
-    try {
-      await importFromExcel(data);
-    } catch (error) {
-      console.error('Error importing data:', error);
-      toast({
-        title: "Erro na importação",
-        description: "Não foi possível importar os dados da planilha.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleClearData = async () => {
     if (!isAdmin()) {
       toast({
@@ -84,18 +62,15 @@ const Index = () => {
     }
 
     try {
-      // Clear database data
-      if (equipmentData) {
-        const deletePromises = [
-          ...equipmentData.cpus.map(cpu => deleteCPU(cpu.id)),
-          ...equipmentData.monitors.map(monitor => deleteMonitor(monitor.id))
-        ];
-        await Promise.all(deletePromises);
-      }
+      // Clear localStorage data
+      localStorage.removeItem('work_machine_cpus');
+      localStorage.removeItem('work_machine_users');
+      // Recarregar dados
+      await fetchAllEquipment();
       
       toast({
         title: "Dados removidos",
-        description: "Todos os dados foram removidos do banco de dados.",
+        description: "Todos os dados foram removidos.",
         variant: "destructive",
       });
     } catch (error) {
@@ -113,29 +88,10 @@ const Index = () => {
   };
 
   const handleExportToExcel = () => {
-    if (!equipmentData) {
-      toast({
-        title: "Nenhum dado disponível",
-        description: "Não há dados para exportar.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      exportToExcel(equipmentData, 'equipamentos_der_sesut');
-      toast({
-        title: "Exportação concluída",
-        description: "Dados exportados para planilha Excel com sucesso.",
-      });
-    } catch (error) {
-      console.error('Error exporting data:', error);
-      toast({
-        title: "Erro na exportação",
-        description: "Não foi possível exportar os dados.",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Funcionalidade em desenvolvimento",
+      description: "Exportação para Excel será implementada em breve.",
+    });
   };
 
   if (isLoading) {
@@ -226,10 +182,10 @@ const Index = () => {
               <div>
                 <h1 className="text-xl font-bold">DER-SESUT MONITORAMENTO</h1>
                 <p className="text-sm text-muted-foreground">
-                  {equipmentData.cpus.length} CPUs • {equipmentData.monitors.length} Monitores
-                  {profile && (
+                  {equipmentData.cpus.length} CPUs
+                  {user && (
                     <span className="ml-2">
-                      • {profile.username} {isAdmin() && '(Admin)'}
+                      • {user.username} {isAdmin() && '(Admin)'}
                     </span>
                   )}
                 </p>
@@ -246,11 +202,7 @@ const Index = () => {
               </Button>
               {isAdmin() && (
                 <>
-                  <AddEquipmentDialog 
-                    onAddCPU={addCPU}
-                    onAddMonitor={addMonitor}
-                  />
-                  <FileImporter onDataImported={handleDataImported} />
+                  <AddEquipmentDialog onAddCPU={addCPU} />
                   <Button 
                     onClick={handleClearData}
                     variant="outline" 
@@ -293,21 +245,46 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="equipment" className="space-y-6">
-            <EquipmentTable 
-              cpus={equipmentData.cpus}
-              monitors={equipmentData.monitors}
-              onEditCPU={(cpu) => {
-                // TODO: Implement edit functionality
-                console.log('Edit CPU:', cpu);
-              }}
-              onEditMonitor={(monitor) => {
-                // TODO: Implement edit functionality
-                console.log('Edit Monitor:', monitor);
-              }}
-              onDeleteCPU={deleteCPU}
-              onDeleteMonitor={deleteMonitor}
-              isAdmin={isAdmin()}
-            />
+            <div className="bg-dashboard-card rounded-lg p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Equipamentos</h2>
+                {isAdmin() && (
+                  <AddEquipmentDialog onAddCPU={addCPU} />
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {equipmentData.cpus.map((cpu) => (
+                  <div key={cpu.id} className="bg-white rounded-lg p-4 shadow-sm border">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold">{cpu.nomenclatura}</h3>
+                      {isAdmin() && (
+                        <div className="flex space-x-1">
+                          <EditEquipmentDialog 
+                            cpu={cpu} 
+                            onUpdateCPU={editCPU}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm('Tem certeza que deseja excluir este equipamento?')) {
+                                removeCPU(cpu.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600">{cpu.marca_modelo}</p>
+                    <p className="text-sm text-gray-600">Departamento: {cpu.departamento}</p>
+                    <p className="text-sm text-gray-600">Estado: {cpu.e_estado}</p>
+                    <p className="text-sm text-gray-600">Responsável: {cpu.responsavel}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </main>

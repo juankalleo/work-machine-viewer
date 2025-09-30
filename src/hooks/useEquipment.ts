@@ -1,7 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { CPU, Monitor, EquipmentData } from '@/types/equipment';
+import { 
+  getAllCPUs, 
+  getCPUById, 
+  createCPU, 
+  updateCPU, 
+  deleteCPU, 
+  getCPUsByDepartment, 
+  getCPUsByState, 
+  getCPUStats,
+  CPU
+} from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
+
+export interface EquipmentData {
+  cpus: CPU[];
+}
 
 export function useEquipment() {
   const [equipmentData, setEquipmentData] = useState<EquipmentData | null>(null);
@@ -10,31 +23,13 @@ export function useEquipment() {
   const { toast } = useToast();
 
   const fetchCPUs = useCallback(async (): Promise<CPU[]> => {
-    const { data, error } = await supabase
-      .from('cpus')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching CPUs:', error);
+    try {
+      const cpus = await getAllCPUs();
+      return cpus;
+    } catch (error) {
+      console.error('Erro ao buscar CPUs:', error);
       throw error;
     }
-
-    return data || [];
-  }, []);
-
-  const fetchMonitors = useCallback(async (): Promise<Monitor[]> => {
-    const { data, error } = await supabase
-      .from('monitors')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching monitors:', error);
-      throw error;
-    }
-
-    return data || [];
   }, []);
 
   const fetchAllEquipment = useCallback(async () => {
@@ -42,241 +37,137 @@ export function useEquipment() {
       setIsLoading(true);
       setError(null);
 
-      const [cpus, monitors] = await Promise.all([
-        fetchCPUs(),
-        fetchMonitors()
-      ]);
-
-      setEquipmentData({ cpus, monitors });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar equipamentos';
+      const cpus = await fetchCPUs();
+      setEquipmentData({ cpus });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       setError(errorMessage);
       toast({
-        title: "Erro",
+        title: "Erro ao carregar equipamentos",
         description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  }, [fetchCPUs, fetchMonitors, toast]);
+  }, [fetchCPUs, toast]);
 
-  const addCPU = useCallback(async (cpu: Omit<CPU, 'id' | 'created_at' | 'updated_at'>) => {
+  const addCPU = useCallback(async (cpuData: Omit<CPU, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
-        .from('cpus')
-        .insert([cpu])
-        .select()
-        .single();
-
-      if (error) throw error;
-
+      const newCPU = createCPU(cpuData);
+      if (equipmentData) {
+        setEquipmentData({
+          ...equipmentData,
+          cpus: [newCPU, ...equipmentData.cpus]
+        });
+      }
       toast({
-        title: "CPU adicionada",
-        description: "CPU foi adicionada com sucesso.",
+        title: "Equipamento adicionado",
+        description: "CPU adicionada com sucesso!",
       });
-
-      // Refresh data
-      await fetchAllEquipment();
-      return data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao adicionar CPU';
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
-        title: "Erro",
+        title: "Erro ao adicionar equipamento",
         description: errorMessage,
         variant: "destructive",
       });
-      throw err;
+      return false;
     }
-  }, [fetchAllEquipment, toast]);
+  }, [equipmentData, toast]);
 
-  const addMonitor = useCallback(async (monitor: Omit<Monitor, 'id' | 'created_at' | 'updated_at'>) => {
+  const editCPU = useCallback(async (id: string, cpuData: Partial<Omit<CPU, 'id' | 'created_at'>>): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
-        .from('monitors')
-        .insert([monitor])
-        .select()
-        .single();
-
-      if (error) throw error;
-
+      const updatedCPU = updateCPU(id, cpuData);
+      if (updatedCPU && equipmentData) {
+        setEquipmentData({
+          ...equipmentData,
+          cpus: equipmentData.cpus.map(cpu => 
+            cpu.id === id ? updatedCPU : cpu
+          )
+        });
+      }
       toast({
-        title: "Monitor adicionado",
-        description: "Monitor foi adicionado com sucesso.",
+        title: "Equipamento atualizado",
+        description: "CPU atualizada com sucesso!",
       });
-
-      // Refresh data
-      await fetchAllEquipment();
-      return data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao adicionar monitor';
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
-        title: "Erro",
+        title: "Erro ao atualizar equipamento",
         description: errorMessage,
         variant: "destructive",
       });
-      throw err;
+      return false;
     }
-  }, [fetchAllEquipment, toast]);
+  }, [equipmentData, toast]);
 
-  const updateCPU = useCallback(async (id: string, updates: Partial<CPU>) => {
+  const removeCPU = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
-        .from('cpus')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
+      const success = deleteCPU(id);
+      if (success && equipmentData) {
+        setEquipmentData({
+          ...equipmentData,
+          cpus: equipmentData.cpus.filter(cpu => cpu.id !== id)
+        });
+      }
       toast({
-        title: "CPU atualizada",
-        description: "CPU foi atualizada com sucesso.",
+        title: "Equipamento removido",
+        description: "CPU removida com sucesso!",
       });
-
-      // Refresh data
-      await fetchAllEquipment();
-      return data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar CPU';
+      return success;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
-        title: "Erro",
+        title: "Erro ao remover equipamento",
         description: errorMessage,
         variant: "destructive",
       });
-      throw err;
+      return false;
     }
-  }, [fetchAllEquipment, toast]);
+  }, [equipmentData, toast]);
 
-  const updateMonitor = useCallback(async (id: string, updates: Partial<Monitor>) => {
+  const getCPUByIdCallback = useCallback(async (id: string): Promise<CPU | null> => {
     try {
-      const { data, error } = await supabase
-        .from('monitors')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast({
-        title: "Monitor atualizado",
-        description: "Monitor foi atualizado com sucesso.",
-      });
-
-      // Refresh data
-      await fetchAllEquipment();
-      return data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar monitor';
-      toast({
-        title: "Erro",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      throw err;
+      return getCPUById(id);
+    } catch (error) {
+      console.error('Erro ao buscar CPU:', error);
+      return null;
     }
-  }, [fetchAllEquipment, toast]);
+  }, []);
 
-  const deleteCPU = useCallback(async (id: string) => {
+  const getCPUsByDepartmentCallback = useCallback(async (department: string): Promise<CPU[]> => {
     try {
-      const { error } = await supabase
-        .from('cpus')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: "CPU removida",
-        description: "CPU foi removida com sucesso.",
-      });
-
-      // Refresh data
-      await fetchAllEquipment();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao remover CPU';
-      toast({
-        title: "Erro",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      throw err;
+      return getCPUsByDepartment(department);
+    } catch (error) {
+      console.error('Erro ao buscar CPUs por departamento:', error);
+      return [];
     }
-  }, [fetchAllEquipment, toast]);
+  }, []);
 
-  const deleteMonitor = useCallback(async (id: string) => {
+  const getCPUsByStateCallback = useCallback(async (state: string): Promise<CPU[]> => {
     try {
-      const { error } = await supabase
-        .from('monitors')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Monitor removido",
-        description: "Monitor foi removido com sucesso.",
-      });
-
-      // Refresh data
-      await fetchAllEquipment();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao remover monitor';
-      toast({
-        title: "Erro",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      throw err;
+      return getCPUsByState(state);
+    } catch (error) {
+      console.error('Erro ao buscar CPUs por estado:', error);
+      return [];
     }
-  }, [fetchAllEquipment, toast]);
+  }, []);
 
-  const importFromExcel = useCallback(async (data: EquipmentData) => {
+  const getStats = useCallback(async () => {
     try {
-      setIsLoading(true);
-
-      // Clear existing data
-      await Promise.all([
-        supabase.from('cpus').delete().neq('id', ''),
-        supabase.from('monitors').delete().neq('id', '')
-      ]);
-
-      // Insert new data
-      const [cpuResult, monitorResult] = await Promise.all([
-        supabase.from('cpus').insert(data.cpus.map(cpu => ({
-          ...cpu,
-          id: undefined // Let Supabase generate new IDs
-        }))),
-        supabase.from('monitors').insert(data.monitors.map(monitor => ({
-          ...monitor,
-          id: undefined // Let Supabase generate new IDs
-        })))
-      ]);
-
-      if (cpuResult.error) throw cpuResult.error;
-      if (monitorResult.error) throw monitorResult.error;
-
-      toast({
-        title: "Dados importados",
-        description: "Dados da planilha foram importados com sucesso.",
-      });
-
-      // Refresh data
-      await fetchAllEquipment();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao importar dados';
-      toast({
-        title: "Erro",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      throw err;
-    } finally {
-      setIsLoading(false);
+      return getCPUStats();
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas:', error);
+      return {
+        total: 0,
+        byDepartment: {},
+        byState: {}
+      };
     }
-  }, [fetchAllEquipment, toast]);
+  }, []);
 
   useEffect(() => {
     fetchAllEquipment();
@@ -286,13 +177,13 @@ export function useEquipment() {
     equipmentData,
     isLoading,
     error,
+    fetchAllEquipment,
     addCPU,
-    addMonitor,
-    updateCPU,
-    updateMonitor,
-    deleteCPU,
-    deleteMonitor,
-    importFromExcel,
-    refetch: fetchAllEquipment
+    editCPU,
+    removeCPU,
+    getCPUById: getCPUByIdCallback,
+    getCPUsByDepartment: getCPUsByDepartmentCallback,
+    getCPUsByState: getCPUsByStateCallback,
+    getStats,
   };
 }

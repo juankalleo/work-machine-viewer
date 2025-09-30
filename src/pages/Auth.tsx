@@ -10,14 +10,10 @@ import { Shield, Lock, User, Mail } from 'lucide-react';
 
 const Auth = () => {
   const { user, loading, signIn, signUp } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Admin credentials filled automatically for demo
-  const [adminEmail, setAdminEmail] = useState('adm@system.com');
-  const [adminPassword, setAdminPassword] = useState('c#d&r1980');
 
   if (loading) {
     return (
@@ -34,14 +30,15 @@ const Auth = () => {
     return <Navigate to="/" replace />;
   }
 
-  const handleSignIn = async (e: React.FormEvent, isAdmin = false) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const emailToUse = isAdmin ? adminEmail : email;
-    const passwordToUse = isAdmin ? adminPassword : password;
-
-    await signIn(emailToUse, passwordToUse);
+    const result = await signIn(username, password);
+    if (result.success) {
+      // Login bem-sucedido, o hook useAuth já vai redirecionar
+      console.log('Login realizado com sucesso');
+    }
     setIsSubmitting(false);
   };
 
@@ -89,17 +86,17 @@ const Auth = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <form onSubmit={(e) => handleSignIn(e, false)} className="space-y-4">
+                <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="username">Usuário</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="seu@email.com"
+                        id="username"
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="admin"
                         className="pl-10"
                         required
                       />
@@ -114,7 +111,7 @@ const Auth = () => {
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="********"
+                        placeholder="admin123"
                         className="pl-10"
                         required
                       />
@@ -132,41 +129,8 @@ const Auth = () => {
                 {/* Admin Login Section */}
                 <div className="pt-4 border-t border-border">
                   <p className="text-sm text-muted-foreground mb-3 text-center">
-                    Acesso Administrativo
+                    Credenciais padrão: admin / admin123
                   </p>
-                  <form onSubmit={(e) => handleSignIn(e, true)} className="space-y-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="admin-email">Email Admin</Label>
-                      <Input
-                        id="admin-email"
-                        type="email"
-                        value={adminEmail}
-                        onChange={(e) => setAdminEmail(e.target.value)}
-                        placeholder="adm@system.com"
-                        className="text-sm"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="admin-password">Senha Admin</Label>
-                      <Input
-                        id="admin-password"
-                        type="password"
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                        placeholder="c#d&r1980"
-                        className="text-sm"
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      variant="secondary"
-                      className="w-full"
-                      disabled={isSubmitting}
-                    >
-                      <Shield className="h-4 w-4 mr-2" />
-                      {isSubmitting ? 'Entrando...' : 'Login Admin'}
-                    </Button>
-                  </form>
                 </div>
               </CardContent>
             </Card>

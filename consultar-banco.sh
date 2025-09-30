@@ -1,0 +1,38 @@
+#!/bin/bash
+
+echo "🗄️ Consultas Úteis do PostgreSQL"
+echo "================================="
+echo ""
+
+echo "📋 Para conectar ao banco:"
+echo "   psql -h localhost -U postgres -d work_machine_viewer"
+echo ""
+
+echo "📊 Comandos úteis dentro do psql:"
+echo ""
+echo "   \\dt                    - Listar todas as tabelas"
+echo "   \\d users               - Descrever estrutura da tabela users"
+echo "   \\d cpus                - Descrever estrutura da tabela cpus"
+echo "   SELECT * FROM users;   - Ver todos os usuários"
+echo "   SELECT * FROM cpus;     - Ver todos os equipamentos"
+echo "   \\q                     - Sair do psql"
+echo ""
+
+echo "🔍 Consultas específicas:"
+echo ""
+echo "   # Ver usuários:"
+echo "   SELECT id, username, email, role FROM users;"
+echo ""
+echo "   # Ver equipamentos:"
+echo "   SELECT id, nomenclatura, departamento, e_estado FROM cpus;"
+echo ""
+echo "   # Contar equipamentos por departamento:"
+echo "   SELECT departamento, COUNT(*) FROM cpus GROUP BY departamento;"
+echo ""
+echo "   # Ver equipamentos ativos:"
+echo "   SELECT * FROM cpus WHERE e_estado = 'Ativo';"
+echo ""
+
+echo "🚀 Para executar consultas diretas:"
+echo "   psql -h localhost -U postgres -d work_machine_viewer -c \"SELECT * FROM users;\""
+echo "   psql -h localhost -U postgres -d work_machine_viewer -c \"SELECT * FROM cpus;\""
