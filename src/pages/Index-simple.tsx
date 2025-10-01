@@ -1,85 +1,63 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Dashboard } from '@/components/Dashboard';
-import { AddEquipmentDialog } from '@/components/AddEquipmentDialog';
-import { EditEquipmentDialog } from '@/components/EditEquipmentDialog';
-import { EquipmentTable } from '@/components/equipment/EquipmentTable';
-import { FileImporter } from '@/components/FileImporter';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEquipment } from '@/hooks/useEquipment';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { EquipmentTable } from '@/components/equipment/EquipmentTable';
+import { Dashboard } from '@/components/Dashboard';
+import { AddEquipmentDialog } from '@/components/AddEquipmentDialog';
+import { FileImporter } from '@/components/FileImporter';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Monitor, BarChart3, Table as TableIcon, Search, LogOut, Download, FileText, RefreshCw } from 'lucide-react';
+import { CPU, Monitor as MonitorType, EquipmentData } from '@/types/equipment';
 import { exportToExcel } from '@/lib/excel-exporter';
 import { downloadExcelTemplate } from '@/lib/excel-template';
-import { EquipmentData } from '@/types/equipment';
-import { CPU, Monitor } from '@/types/equipment';
-import { 
-  Monitor, 
-  BarChart3,
-  Table as TableIcon,
-  Search,
-  LogOut,
-  Download,
-  FileText,
-  RefreshCw,
-  Trash2,
-  Plus
-} from 'lucide-react';
 
-const Index = () => {
-  console.log('Index renderizando...');
-  
+const IndexSimple = () => {
   const { user, loading: authLoading, signOut, isAdmin } = useAuth();
-  const { 
-    equipmentData, 
-    isLoading: equipmentLoading, 
-    addCPU, 
-    addMonitor, 
-    editCPU,
-    removeCPU, 
-    syncNow 
-  } = useEquipment();
+  const { equipmentData, isLoading: equipmentLoading, addCPU, addMonitor, editCPU, removeCPU, syncNow } = useEquipment();
   const { toast } = useToast();
   
-  // Estados para a busca
+  // Estado para busca simples
+  const [searchTerm, setSearchTerm] = useState('');
   const [filteredCPUs, setFilteredCPUs] = useState<CPU[]>([]);
-  const [filteredMonitors, setFilteredMonitors] = useState<Monitor[]>([]);
+  const [filteredMonitors, setFilteredMonitors] = useState<MonitorType[]>([]);
   
-  console.log('Auth status:', { user, authLoading });
-  console.log('Equipment data:', equipmentData);
-  
-  // Redirect to auth if not logged in
-  if (authLoading) {
-    console.log('Auth loading...');
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-900">
-        <div className="animate-pulse text-center">
-          <Monitor className="h-12 w-12 mx-auto mb-4 text-blue-500" />
-          <p className="text-gray-300">Carregando sistema...</p>
-        </div>
-      </div>
-    );
-  }
+  // Aplicar filtros simples
+  useEffect(() => {
+    if (!equipmentData) return;
 
-  if (!user) {
-    console.log('Nenhum usuário, redirecionando para auth...');
-    return <Navigate to="/auth" replace />;
-  }
+    let cpus = equipmentData.cpus;
+    let monitors = equipmentData.monitors;
 
-  console.log('Usuário logado:', user);
+    // Busca por texto geral
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      cpus = cpus.filter(cpu => 
+        Object.values(cpu).some(value => 
+          value && value.toString().toLowerCase().includes(searchLower)
+        )
+      );
+      monitors = monitors.filter(monitor => 
+        Object.values(monitor).some(value => 
+          value && value.toString().toLowerCase().includes(searchLower)
+        )
+      );
+    }
+
+    setFilteredCPUs(cpus);
+    setFilteredMonitors(monitors);
+  }, [equipmentData, searchTerm]);
   
   const handleDataImported = async (importedData: EquipmentData) => {
-    console.log('Importando dados:', importedData);
-    
-    // Adicionar cada CPU importada
     let cpusAdded = 0;
     for (const cpu of importedData.cpus) {
       const success = await addCPU(cpu);
       if (success) cpusAdded++;
     }
     
-    // Adicionar cada monitor importado
     let monitorsAdded = 0;
     for (const monitor of importedData.monitors) {
       const success = await addMonitor(monitor);
@@ -88,12 +66,12 @@ const Index = () => {
     
     toast({
       title: "Dados importados!",
-      description: `${cpusAdded} CPUs e ${monitorsAdded} monitores importados com sucesso.`,
+      description: `${cpusAdded} CPUs e ${monitorsAdded} monitores importados.`,
     });
   };
-
+  
   const handleExportToExcel = async () => {
-  if (!equipmentData || equipmentData?.cpus?.length === 0) {
+    if (!equipmentData || equipmentData?.cpus?.length === 0) {
       toast({
         title: "Nenhum dado para exportar",
         description: "Não há equipamentos para exportar.",
@@ -116,7 +94,7 @@ const Index = () => {
       });
     }
   };
-
+  
   const handleDownloadTemplate = async () => {
     try {
       await downloadExcelTemplate();
@@ -132,18 +110,9 @@ const Index = () => {
       });
     }
   };
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
   
   const handleEditCPU = async (id: string, cpuData: any): Promise<boolean> => {
     return await editCPU(id, cpuData);
-  };
-  
-  const handleEditMonitor = (monitor: Monitor) => {
-    // A lógica de edição será gerenciada pelo EditEquipmentDialog  
-    console.log('Editando Monitor:', monitor);
   };
   
   const handleDeleteCPU = async (id: string) => {
@@ -152,29 +121,27 @@ const Index = () => {
     }
   };
   
-  const handleDeleteMonitor = async (id: string) => {
-    // Implementar quando necessário
-    console.log('Deletando monitor:', id);
+  const handleSignOut = async () => {
+    await signOut();
   };
   
-  // Atualizar dados filtrados quando equipmentData mudar
-  useEffect(() => {
-    if (equipmentData) {
-      setFilteredCPUs(equipmentData.cpus);
-      setFilteredMonitors(equipmentData.monitors);
-    }
-  }, [equipmentData]);
-  
-  const handleSearchResults = (cpus: CPU[], monitors: Monitor[]) => {
-    setFilteredCPUs(cpus);
-    setFilteredMonitors(monitors);
-  };
-  
-  console.log('Renderizando interface logada...');
-  
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-900">
+        <div className="animate-pulse text-center">
+          <Monitor className="h-12 w-12 mx-auto mb-4 text-blue-500" />
+          <p className="text-gray-300">Carregando sistema...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Header com glassmorphism */}
       <header className="backdrop-blur-md bg-white/5 border-b border-white/10 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -249,7 +216,6 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
         <Tabs defaultValue="dashboard" className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-md border border-white/20 p-1 rounded-2xl">
@@ -282,27 +248,31 @@ const Index = () => {
           
           <TabsContent value="search" className="mt-8">
             <div className="space-y-6">
-              {/* Temporariamente comentado para debug 
-              <AdvancedSearch 
-                cpus={equipmentData?.cpus || []}
-                monitors={equipmentData?.monitors || []}
-                onResultsChange={handleSearchResults}
-              />
-              */}
-              
-              <div className="p-8 text-center">
+              <div className="backdrop-blur-md bg-white/5 rounded-3xl border border-white/10 p-8 shadow-2xl">
                 <h2 className="text-2xl font-bold text-white mb-4">Busca de Equipamentos</h2>
-                <p className="text-gray-400">Funcionalidade de busca em desenvolvimento...</p>
+                
+                <div className="relative mb-6">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por qualquer campo (nome, modelo, responsável, etc.)"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4"
+                  />
+                </div>
+                
+                <div className="text-sm text-gray-400 mb-4">
+                  CPUs encontradas: {filteredCPUs.length} • Monitores encontrados: {filteredMonitors.length}
+                </div>
               </div>
               
-              {/* Resultados da busca */}
               <EquipmentTable 
                 cpus={filteredCPUs}
                 monitors={filteredMonitors}
                 onEditCPU={handleEditCPU}
-                onEditMonitor={handleEditMonitor}
+                onEditMonitor={() => {}}
                 onDeleteCPU={handleDeleteCPU}
-                onDeleteMonitor={handleDeleteMonitor}
+                onDeleteMonitor={() => {}}
                 isAdmin={isAdmin()}
               />
             </div>
@@ -313,9 +283,9 @@ const Index = () => {
               cpus={equipmentData?.cpus || []}
               monitors={equipmentData?.monitors || []}
               onEditCPU={handleEditCPU}
-              onEditMonitor={handleEditMonitor}
+              onEditMonitor={() => {}}
               onDeleteCPU={handleDeleteCPU}
-              onDeleteMonitor={handleDeleteMonitor}
+              onDeleteMonitor={() => {}}
               isAdmin={isAdmin()}
             />
           </TabsContent>
@@ -325,4 +295,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default IndexSimple;

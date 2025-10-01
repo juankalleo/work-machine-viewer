@@ -3,7 +3,7 @@ export interface CPU {
   item: number;
   nomenclatura: string;
   tombamento: string;
-  e_estado: string;
+  e_estado: number;
   marca_modelo: string;
   processador: string;
   memoria_ram: string;
@@ -24,7 +24,7 @@ export interface Monitor {
   item: number;
   tombamento: string;
   numero_serie: string;
-  e_estado: string;
+  e_estado: number;
   modelo: string;
   polegadas: string;
   observacao?: string | null;

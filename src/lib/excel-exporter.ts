@@ -80,8 +80,8 @@ export function exportToExcel(data: EquipmentData, filename: string = 'equipamen
     // Adicionar planilha de resumo
     const summaryData = [
       { 'Categoria': 'Total de CPUs', 'Quantidade': data.cpus?.length || 0 },
-      { 'Categoria': 'CPUs Ativas', 'Quantidade': data.cpus?.filter(cpu => cpu.e_estado === 'Ativo').length || 0 },
-      { 'Categoria': 'CPUs Inativas', 'Quantidade': data.cpus?.filter(cpu => cpu.e_estado === 'Inativo').length || 0 },
+      { 'Categoria': 'CPUs Ativas', 'Quantidade': data.cpus?.filter(cpu => cpu.e_estado > 0).length || 0 },
+      { 'Categoria': 'CPUs Inativas', 'Quantidade': data.cpus?.filter(cpu => cpu.e_estado === 0).length || 0 },
       { 'Categoria': 'Total de Monitores', 'Quantidade': data.monitors?.length || 0 },
       { 'Categoria': '', 'Quantidade': '' }, // Linha em branco
       { 'Categoria': 'Data da Exportação', 'Quantidade': new Date().toLocaleString('pt-BR') },

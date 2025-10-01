@@ -298,9 +298,9 @@ app.delete('/api/monitors/:id', async (req, res) => {
 app.get('/api/stats', async (req, res) => {
   try {
     const [cpusResult] = await pool.query('SELECT COUNT(*) as total FROM cpus');
-    const [cpusActiveResult] = await pool.query('SELECT COUNT(*) as active FROM cpus WHERE e_estado LIKE "%active%" OR e_estado LIKE "%ativo%"');
+    const [cpusActiveResult] = await pool.query('SELECT COUNT(*) as active FROM cpus WHERE e_estado > 0');
     const [monitorsResult] = await pool.query('SELECT COUNT(*) as total FROM monitors');
-    const [monitorsActiveResult] = await pool.query('SELECT COUNT(*) as active FROM monitors WHERE e_estado LIKE "%active%" OR e_estado LIKE "%ativo%"');
+    const [monitorsActiveResult] = await pool.query('SELECT COUNT(*) as active FROM monitors WHERE e_estado > 0');
     const [deptResult] = await pool.query('SELECT departamento, COUNT(*) as count FROM cpus GROUP BY departamento');
     
     res.json({

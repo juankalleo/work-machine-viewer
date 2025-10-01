@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CPU, Monitor } from '@/types/equipment';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { EditEquipmentDialog } from '@/components/EditEquipmentDialog';
 import { 
   Table,
   TableBody,
@@ -12,23 +13,17 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Edit2, 
   Trash2, 
-  Search, 
-  Filter,
   Cpu,
-  Monitor as MonitorIcon,
-  HardDrive,
-  Zap
+  Monitor as MonitorIcon
 } from 'lucide-react';
 
 interface EquipmentTableProps {
   cpus: CPU[];
   monitors: Monitor[];
-  onEditCPU?: (cpu: CPU) => void;
+  onEditCPU?: (id: string, cpuData: any) => Promise<boolean>;
   onEditMonitor?: (monitor: Monitor) => void;
   onDeleteCPU?: (id: string) => void;
   onDeleteMonitor?: (id: string) => void;
@@ -44,96 +39,21 @@ export function EquipmentTable({
   onDeleteMonitor,
   isAdmin = false
 }: EquipmentTableProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-  const [stateFilter, setStateFilter] = useState<string>('all');
+  const [editingCPU, setEditingCPU] = useState<CPU | null>(null);
+  
+  // Use os dados já filtrados externamente
+  const filteredCPUs = cpus;
+  const filteredMonitors = monitors;
 
-  // Get unique departments for filter
-  const departments = Array.from(
-    new Set([...cpus.map(c => c.departamento), ...monitors.map(m => m.departamento)])
-  ).filter(Boolean);
-
-  // Filter CPUs
-  const filteredCPUs = cpus.filter(cpu => {
-    const matchesSearch = searchTerm === '' || 
-      Object.values(cpu).some(value => 
-        value && value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    const matchesDepartment = departmentFilter === 'all' || cpu.departamento === departmentFilter;
-    const matchesState = stateFilter === 'all' || cpu.e_estado === stateFilter;
-    
-    return matchesSearch && matchesDepartment && matchesState;
-  });
-
-  // Filter monitors
-  const filteredMonitors = monitors.filter(monitor => {
-    const matchesSearch = searchTerm === '' || 
-      Object.values(monitor).some(value => 
-        value && value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    const matchesDepartment = departmentFilter === 'all' || monitor.departamento === departmentFilter;
-    const matchesState = stateFilter === 'all' || monitor.e_estado === stateFilter;
-    
-    return matchesSearch && matchesDepartment && matchesState;
-  });
-
-  const getStatusBadge = (estado: string) => {
-    const variant = estado === 'Ativo' ? 'default' : 
-                   estado === 'RASURADO' ? 'destructive' : 'secondary';
-    return <Badge variant={variant}>{estado}</Badge>;
+  const getStatusBadge = (estado: number) => {
+    // Para números, vamos assumir que valores > 0 são ativos, 0 é inativo
+    const estadoText = estado > 0 ? estado.toString() : 'Inativo';
+    const variant = estado > 0 ? 'default' : 'secondary';
+    return <Badge variant={variant}>{estadoText}</Badge>;
   };
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtros
-          </CardTitle>
-          <CardDescription>
-            Filtre os equipamentos por nome, departamento ou estado
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar equipamentos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por departamento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os departamentos</SelectItem>
-                {departments.map(dept => (
-                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={stateFilter} onValueChange={setStateFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os estados</SelectItem>
-                <SelectItem value="Ativo">Ativo</SelectItem>
-                <SelectItem value="RASURADO">Rasurado</SelectItem>
-                <SelectItem value="Inativo">Inativo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Equipment Tables */}
       <Tabs defaultValue="cpus" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="cpus" className="flex items-center gap-2">
@@ -204,13 +124,12 @@ export function EquipmentTable({
                         <TableCell>{cpu.departamento}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {onEditCPU && (
+                            {isAdmin && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => onEditCPU(cpu)}
-                                disabled={!isAdmin}
-                                title={!isAdmin ? "Apenas administradores podem editar" : ""}
+                                onClick={() => setEditingCPU(cpu)}
+                                title="Editar equipamento"
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
@@ -318,6 +237,26 @@ export function EquipmentTable({
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Edit CPU Dialog */}
+      {editingCPU && onEditCPU && (
+        <EditEquipmentDialog 
+          cpu={editingCPU}
+          open={!!editingCPU}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingCPU(null);
+            }
+          }}
+          onUpdateCPU={async (id, cpuData) => {
+            const success = await onEditCPU(id, cpuData);
+            if (success) {
+              setEditingCPU(null);
+            }
+            return success;
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -82,7 +82,7 @@ export function AddEquipmentDialog({ onAddCPU, onAddMonitor }: AddEquipmentDialo
         no_dominio: formData.no_dominio,
         departamento: formData.departamento,
         responsavel: formData.responsavel,
-        e_estado: formData.e_estado,
+        e_estado: parseInt(formData.e_estado) || 0,
         data_formatacao: formData.data_formatacao || null,
         desfazimento: formData.desfazimento || null
       });
@@ -153,7 +153,7 @@ export function AddEquipmentDialog({ onAddCPU, onAddMonitor }: AddEquipmentDialo
         data_verificacao: monitorFormData.data_verificacao,
         responsavel: monitorFormData.responsavel,
         departamento: monitorFormData.departamento,
-        e_estado: monitorFormData.e_estado,
+        e_estado: parseInt(monitorFormData.e_estado) || 0,
         desfazimento: monitorFormData.desfazimento || null
       });
 
@@ -370,6 +370,7 @@ export function AddEquipmentDialog({ onAddCPU, onAddMonitor }: AddEquipmentDialo
               <Label htmlFor="e_estado">E-estado</Label>
               <Input
                 id="e_estado"
+                type="number"
                 value={formData.e_estado}
                 onChange={(e) => handleInputChange('e_estado', e.target.value)}
                 placeholder="210000509"
@@ -515,6 +516,7 @@ export function AddEquipmentDialog({ onAddCPU, onAddMonitor }: AddEquipmentDialo
                   <Label htmlFor="monitor_e_estado">E-estado</Label>
                   <Input
                     id="monitor_e_estado"
+                    type="number"
                     value={monitorFormData.e_estado}
                     onChange={(e) => handleMonitorInputChange('e_estado', e.target.value)}
                     placeholder="210000509"

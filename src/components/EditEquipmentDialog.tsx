@@ -7,15 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Edit, Monitor } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { CPU } from '@/lib/storage';
+import { CPU } from '@/types/equipment';
 
 interface EditEquipmentDialogProps {
   cpu: CPU;
   onUpdateCPU: (id: string, cpuData: any) => Promise<boolean>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function EditEquipmentDialog({ cpu, onUpdateCPU }: EditEquipmentDialogProps) {
-  const [open, setOpen] = useState(false);
+export function EditEquipmentDialog({ cpu, onUpdateCPU, open: externalOpen, onOpenChange }: EditEquipmentDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -32,7 +36,7 @@ export function EditEquipmentDialog({ cpu, onUpdateCPU }: EditEquipmentDialogPro
     no_dominio: cpu.no_dominio,
     departamento: cpu.departamento,
     responsavel: cpu.responsavel,
-    e_estado: cpu.e_estado,
+    e_estado: cpu.e_estado.toString(),
     data_formatacao: cpu.data_formatacao || '',
     desfazimento: cpu.desfazimento || ''
   });
@@ -51,7 +55,7 @@ export function EditEquipmentDialog({ cpu, onUpdateCPU }: EditEquipmentDialogPro
       no_dominio: cpu.no_dominio,
       departamento: cpu.departamento,
       responsavel: cpu.responsavel,
-      e_estado: cpu.e_estado,
+      e_estado: cpu.e_estado.toString(),
       data_formatacao: cpu.data_formatacao || '',
       desfazimento: cpu.desfazimento || ''
     });
@@ -88,7 +92,7 @@ export function EditEquipmentDialog({ cpu, onUpdateCPU }: EditEquipmentDialogPro
         no_dominio: formData.no_dominio,
         departamento: formData.departamento,
         responsavel: formData.responsavel,
-        e_estado: formData.e_estado,
+        e_estado: parseInt(formData.e_estado) || 0,
         data_formatacao: formData.data_formatacao || null,
         desfazimento: formData.desfazimento || null
       });
@@ -116,12 +120,14 @@ export function EditEquipmentDialog({ cpu, onUpdateCPU }: EditEquipmentDialogPro
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Edit className="h-4 w-4 mr-2" />
-          Editar
-        </Button>
-      </DialogTrigger>
+      {externalOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <Edit className="h-4 w-4 mr-2" />
+            Editar
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -271,20 +277,16 @@ export function EditEquipmentDialog({ cpu, onUpdateCPU }: EditEquipmentDialogPro
               />
             </div>
 
-            {/* Estado */}
+            {/* E-estado */}
             <div className="space-y-2">
-              <Label htmlFor="e_estado">Estado</Label>
-              <Select value={formData.e_estado} onValueChange={(value) => handleInputChange('e_estado', value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Ativo">Ativo</SelectItem>
-                  <SelectItem value="Inativo">Inativo</SelectItem>
-                  <SelectItem value="Manutenção">Manutenção</SelectItem>
-                  <SelectItem value="RASURADO">RASURADO</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="e_estado">E-estado</Label>
+              <Input
+                id="e_estado"
+                type="number"
+                value={formData.e_estado}
+                onChange={(e) => handleInputChange('e_estado', e.target.value)}
+                placeholder="210000509"
+              />
             </div>
 
             {/* Data de Formatação */}

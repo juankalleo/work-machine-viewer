@@ -20,7 +20,7 @@ interface DashboardProps {
 export function Dashboard({ equipmentData }: DashboardProps) {
   const totalCPUs = equipmentData.cpus.length;
   const totalMonitors = equipmentData.monitors?.length || 0;
-  const activeCPUs = equipmentData.cpus.filter(cpu => cpu.e_estado === 'Ativo').length;
+  const activeCPUs = equipmentData.cpus.filter(cpu => cpu.e_estado > 0).length;
   const inactiveCPUs = totalCPUs - activeCPUs;
   
   // Calcular estatísticas por departamento
@@ -29,7 +29,7 @@ export function Dashboard({ equipmentData }: DashboardProps) {
       acc[cpu.departamento] = { total: 0, active: 0 };
     }
     acc[cpu.departamento].total++;
-    if (cpu.e_estado === 'Ativo') {
+    if (cpu.e_estado > 0) {
       acc[cpu.departamento].active++;
     }
     return acc;
@@ -256,11 +256,11 @@ export function Dashboard({ equipmentData }: DashboardProps) {
               <div className="text-right">
                 <div className="text-sm font-medium text-white">{cpu.departamento}</div>
                 <div className={`text-xs px-2 py-1 rounded-full ${
-                  cpu.e_estado === 'Ativo' 
+                  cpu.e_estado > 0 
                     ? 'bg-emerald-500/20 text-emerald-300' 
                     : 'bg-orange-500/20 text-orange-300'
                 }`}>
-                  {cpu.e_estado}
+                  {cpu.e_estado > 0 ? cpu.e_estado.toString() : 'Inativo'}
                 </div>
               </div>
             </div>
