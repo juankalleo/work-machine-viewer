@@ -1,24 +1,60 @@
-FROM node:18
+# Multi-stage build para otimização
+FROM node:18-alpine AS builder
 
 # Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar package.json e package-lock.json (se existir) do root
+# Copiar package.json e package-lock.json
 COPY package*.json ./
 
-# Instalar dependências do projeto (inclui concurrently)
-RUN npm install
+# Instalar dependências
+RUN npm ci --only=production
 
-# Copiar todo o código do projeto
+# Copiar código fonte
 COPY . .
 
-# Instalar dependências do frontend (se estiver em subdiretório, e.g., /frontend)
-# Descomente se o frontend está em um diretório separado
-# COPY frontend/package*.json ./frontend/
-# RUN cd frontend && npm install
+# Build da aplicação frontend
+RUN npm run build
 
-# Expor portas para backend (3001) e frontend (5173, padrão para Vite)
-EXPOSE 3001 5173
+# Estágio de produção
+FROM node:18-alpine AS production
 
-# Comando para rodar backend e frontend simultaneamente
-CMD ["npm", "run", "start"]
+# Instalar dependências do sistema necessárias para MySQL
+RUN apk add --no-cache mysql-client
+
+# Criar usuário não-root
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nextjs -u 1001
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar dependências do backend
+COPY server/package*.json ./server/
+WORKDIR /app/server
+RUN npm ci --only=production
+
+# Voltar para o diretório principal
+WORKDIR /app
+
+# Copiar arquivos buildados do frontend
+COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
+
+# Copiar código do servidor
+COPY --chown=nextjs:nodejs server/ ./server/
+
+# Copiar arquivos de configuração e migração
+COPY --chown=nextjs:nodejs migrations/ ./migrations/
+
+# Usar usuário não-root
+USER nextjs
+
+# Expor apenas a porta do backend (3001)
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "http.get('http://localhost:3001/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Comando para iniciar apenas o servidor (frontend será servido como arquivos estáticos)
+CMD ["node", "server/server.js"]

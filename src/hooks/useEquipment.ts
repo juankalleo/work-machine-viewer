@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CPU, Monitor } from '@/lib/storage';
+import { CPU, Monitor } from '@/types/equipment';
 import { db } from '@/lib/database';
 import { useToast } from '@/hooks/use-toast';
 

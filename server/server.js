@@ -4,19 +4,24 @@
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
-// Configurar MySQL
+// Configurar MySQL com a nova configuração
 const pool = mysql.createPool({
   host: '193.203.175.32',
-  user: 'u869274312_kalleo', // Substitua pelo seu usuário
-  password: 'Kalleo@123', // Substitua pela sua senha
+  user: 'u869274312_kalleo',
+  password: 'Kalleo@123',
   database: 'u869274312_kalleo',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  acquireTimeout: 60000,
+  timeout: 60000,
+  reconnect: true
 });
 
 // Testar conexão na inicialização
@@ -32,8 +37,19 @@ async function testConnection() {
 testConnection();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: '*', // Em produção, especifique domínios específicos
+  credentials: true
+}));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Servir arquivos estáticos do frontend (se existir)
+const frontendPath = path.join(__dirname, '../dist');
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+  console.log('📱 Servindo frontend estático de:', frontendPath);
+}
 
 // Middleware para logs
 app.use((req, res, next) => {
@@ -319,11 +335,22 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// Rota catch-all para SPAs (deve ser a última rota)
+app.get('*', (req, res) => {
+  const frontendIndexPath = path.join(__dirname, '../dist/index.html');
+  if (fs.existsSync(frontendIndexPath)) {
+    res.sendFile(frontendIndexPath);
+  } else {
+    res.status(404).json({ error: 'Frontend não encontrado' });
+  }
+});
+
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor rodando em http://0.0.0.0:${PORT}`);
-  console.log(`📊 API disponível em http://10.46.0.213:${PORT}/api`);
-  console.log(`🏥 Health check: http://10.46.0.213:${PORT}/api/health`);
+  console.log(`📊 API disponível em http://193.203.175.32:${PORT}/api`);
+  console.log(`🏥 Health check: http://193.203.175.32:${PORT}/api/health`);
+  console.log(`🌐 Frontend disponível em http://193.203.175.32:${PORT}`);
 });
 
 // Tratamento de erros não capturados

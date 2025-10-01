@@ -1,5 +1,6 @@
-// Sistema de autenticação simples para navegador
-import { User, getUserByUsername, createUser } from './storage';
+// Sistema de autenticação com MySQL
+import { User } from '@/types/equipment';
+import { db } from './database';
 
 export interface AuthResult {
   success: boolean;
@@ -37,8 +38,27 @@ export function verifyToken(token: string): { userId: string } | null {
 // Login do usuário
 export async function loginUser(username: string, password: string): Promise<AuthResult> {
   try {
-    // Buscar usuário
-    const user = getUserByUsername(username);
+    // Para o admin, usar credenciais fixas sem consultar o banco
+    if (username === 'admin' && password === 'admin123') {
+      const adminUser: User = {
+        id: 'admin-001',
+        username: 'admin',
+        email: 'admin@der-sesut.com',
+        role: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      const token = generateToken(adminUser.id);
+      return {
+        success: true,
+        user: adminUser,
+        token
+      };
+    }
+
+    // Para outros usuários, buscar no banco MySQL
+    const user = await db.getUserByUsername(username);
     
     if (!user) {
       return {
@@ -47,18 +67,7 @@ export async function loginUser(username: string, password: string): Promise<Aut
       };
     }
 
-    // Para simplificar, vamos aceitar qualquer senha para o admin
-    // Em produção, você teria senhas hasheadas no banco
-    if (username === 'admin' && password === 'admin123') {
-      const token = generateToken(user.id);
-      return {
-        success: true,
-        user,
-        token
-      };
-    }
-
-    // Para outros usuários, verificar senha (implementação simplificada)
+    // Validação básica de senha (para usuários do banco)
     if (password.length < 6) {
       return {
         success: false,
@@ -89,8 +98,8 @@ export async function registerUser(
   role: string = 'user'
 ): Promise<AuthResult> {
   try {
-    // Verificar se usuário já existe
-    const existingUser = getUserByUsername(username);
+    // Verificar se usuário já existe no MySQL
+    const existingUser = await db.getUserByUsername(username);
     
     if (existingUser) {
       return {
@@ -107,8 +116,8 @@ export async function registerUser(
       };
     }
 
-    // Criar usuário
-    const newUser = createUser({
+    // Criar usuário no MySQL
+    const newUser = await db.createUser({
       username,
       email,
       role
@@ -133,8 +142,20 @@ export async function registerUser(
 // Buscar usuário por ID
 export async function getUserById(userId: string): Promise<User | null> {
   try {
-    // Buscar usuário pelo ID no localStorage
-    const users = JSON.parse(localStorage.getItem('work_machine_users') || '[]');
+    // Se for o admin, retornar diretamente
+    if (userId === 'admin-001') {
+      return {
+        id: 'admin-001',
+        username: 'admin',
+        email: 'admin@der-sesut.com',
+        role: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    }
+
+    // Para outros usuários, buscar no MySQL
+    const users = await db.getAllUsers();
     const user = users.find((u: User) => u.id === userId);
     return user || null;
   } catch (error) {

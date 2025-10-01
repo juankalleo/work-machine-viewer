@@ -1,15 +1,12 @@
-// Sistema de dados local para o navegador
-import { 
-  CPU, Monitor, User, 
-  getAllCPUs, getAllMonitors, getAllUsers, 
-  createCPU as storageCPU, createMonitor as storageMonitor, createUser as storageUser, 
-  updateCPU as storageUpdateCPU, updateMonitor as storageUpdateMonitor,
-  deleteCPU as storageDeleteCPU, deleteMonitor as storageDeleteMonitor,
-  getUserByUsername
-} from './storage';
+// Sistema de dados MySQL para o navegador
+import { CPU, Monitor, User } from '@/types/equipment';
+
+// Configuração do servidor MySQL
+const API_BASE_URL = 'http://193.203.175.32:3001/api';
 
 class DatabaseManager {
   private static instance: DatabaseManager;
+  private baseUrl = API_BASE_URL;
 
   static getInstance(): DatabaseManager {
     if (!DatabaseManager.instance) {
@@ -18,71 +15,144 @@ class DatabaseManager {
     return DatabaseManager.instance;
   }
 
+  private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
+    const url = `${this.baseUrl}${endpoint}`;
+    
+    const config: RequestInit = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error(`Database request failed: ${endpoint}`, error);
+      throw error;
+    }
+  }
+
   // CPUs
   async getAllCPUs(): Promise<CPU[]> {
-    return getAllCPUs();
+    return await this.request('/cpus');
   }
 
   async createCPU(cpuData: Omit<CPU, 'id' | 'created_at' | 'updated_at'>): Promise<CPU> {
-    return storageCPU(cpuData);
+    return await this.request('/cpus', {
+      method: 'POST',
+      body: JSON.stringify(cpuData),
+    });
   }
 
   async updateCPU(id: string, cpuData: Partial<CPU>): Promise<CPU | null> {
-    return storageUpdateCPU(id, cpuData);
+    return await this.request(`/cpus/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(cpuData),
+    });
   }
 
   async deleteCPU(id: string): Promise<boolean> {
-    return storageDeleteCPU(id);
+    try {
+      await this.request(`/cpus/${id}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch (error) {
+      console.error('Erro ao deletar CPU:', error);
+      return false;
+    }
   }
 
   // Monitores
   async getAllMonitors(): Promise<Monitor[]> {
-    return getAllMonitors();
+    return await this.request('/monitors');
   }
 
   async createMonitor(monitorData: Omit<Monitor, 'id' | 'created_at' | 'updated_at'>): Promise<Monitor> {
-    return storageMonitor(monitorData);
+    return await this.request('/monitors', {
+      method: 'POST',
+      body: JSON.stringify(monitorData),
+    });
   }
 
   async updateMonitor(id: string, monitorData: Partial<Monitor>): Promise<Monitor | null> {
-    return storageUpdateMonitor(id, monitorData);
+    return await this.request(`/monitors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(monitorData),
+    });
   }
 
   async deleteMonitor(id: string): Promise<boolean> {
-    return storageDeleteMonitor(id);
+    try {
+      await this.request(`/monitors/${id}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch (error) {
+      console.error('Erro ao deletar Monitor:', error);
+      return false;
+    }
   }
 
   // Usuários
   async getAllUsers(): Promise<User[]> {
-    return getAllUsers();
+    return await this.request('/users');
   }
 
   async getUserByUsername(username: string): Promise<User | null> {
-    return getUserByUsername(username);
+    try {
+      return await this.request(`/users/${username}`);
+    } catch (error) {
+      console.error('Usuário não encontrado:', error);
+      return null;
+    }
   }
 
   async createUser(userData: Omit<User, 'id' | 'created_at' | 'updated_at'>): Promise<User> {
-    return storageUser(userData);
+    return await this.request('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
   }
 
   // Utilitários
   async testConnection(): Promise<boolean> {
-    return true;
+    try {
+      await this.request('/health');
+      return true;
+    } catch (error) {
+      console.error('Conexão com servidor falhou:', error);
+      return false;
+    }
   }
 
   isReady(): boolean {
-    return true;
+    return true; // MySQL é sempre "ready" (conexão é estabelecida no servidor)
   }
 
   async syncNow(): Promise<void> {
+    // Para MySQL, sincronização é automática
     return Promise.resolve();
   }
 
   getConnectionStatus(): { isOnline: boolean; serverUrl: string } {
     return {
       isOnline: true,
-      serverUrl: 'localStorage'
+      serverUrl: this.baseUrl
     };
+  }
+
+  // Estatísticas
+  async getStats(): Promise<any> {
+    return await this.request('/stats');
   }
 }
 
