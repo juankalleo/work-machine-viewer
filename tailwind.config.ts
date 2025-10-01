@@ -76,11 +76,20 @@ export default {
         'gradient-primary': 'var(--gradient-primary)',
         'gradient-card': 'var(--gradient-card)',
         'gradient-accent': 'var(--gradient-accent)',
+        'gradient-glass': 'var(--gradient-glass)',
       },
       boxShadow: {
         'card': 'var(--shadow-card)',
         'elevated': 'var(--shadow-elevated)',
         'glow': 'var(--shadow-glow)',
+        'glass': 'var(--shadow-glass)',
+      },
+      backdropBlur: {
+        'xs': '2px',
+      },
+      animation: {
+        'floating': 'floating 3s ease-in-out infinite',
+        'gradient-shift': 'gradient-shift 4s ease infinite',
       },
       keyframes: {
         "accordion-down": {

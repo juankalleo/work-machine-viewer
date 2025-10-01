@@ -8,54 +8,54 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 5%;
-    --foreground: 120 100% 90%;
+    --background: 220 27% 4%;
+    --foreground: 220 15% 95%;
     
-    --card: 0 0% 8%;
-    --card-foreground: 120 100% 90%;
+    --card: 220 25% 8%;
+    --card-foreground: 220 15% 95%;
     
-    --popover: 0 0% 8%;
-    --popover-foreground: 120 100% 90%;
+    --popover: 220 25% 8%;
+    --popover-foreground: 220 15% 95%;
     
-    --primary: 120 100% 40%;
-    --primary-foreground: 0 0% 0%;
+    --primary: 250 100% 65%;
+    --primary-foreground: 220 27% 4%;
     
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 120 100% 90%;
+    --secondary: 220 20% 12%;
+    --secondary-foreground: 220 15% 90%;
     
-    --muted: 0 0% 12%;
-    --muted-foreground: 120 20% 65%;
+    --muted: 220 20% 10%;
+    --muted-foreground: 220 10% 70%;
     
-    --accent: 120 100% 35%;
-    --accent-foreground: 0 0% 0%;
+    --accent: 270 100% 70%;
+    --accent-foreground: 220 27% 4%;
     
-    --destructive: 0 84% 60%;
+    --destructive: 0 90% 63%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 120 100% 40%;
+    --border: 220 20% 18%;
+    --input: 220 20% 12%;
+    --ring: 250 100% 65%;
     
     --radius: 0.75rem;
     
-    /* Dashboard specific colors */
-    --dashboard-bg: 0 0% 3%;
-    --dashboard-card: 0 0% 8%;
-    --dashboard-accent: 120 100% 40%;
-    --dashboard-success: 120 100% 35%;
-    --dashboard-warning: 45 100% 50%;
-    --dashboard-danger: 0 84% 60%;
-    --dashboard-info: 120 100% 50%;
+    /* Dashboard colors */
+    --dashboard-bg: 220 27% 4%;
+    --dashboard-card: 220 25% 8%;
+    --dashboard-accent: 250 100% 65%;
+    --dashboard-success: 140 70% 55%;
+    --dashboard-warning: 45 95% 60%;
+    --dashboard-danger: 0 90% 63%;
+    --dashboard-info: 200 100% 65%;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(120 100% 40%), hsl(120 100% 30%));
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 8%), hsl(0 0% 12%));
-    --gradient-accent: linear-gradient(135deg, hsl(120 100% 40%), hsl(120 100% 50%));
+    --gradient-primary: linear-gradient(135deg, hsl(250 100% 65%), hsl(270 100% 70%));
+    --gradient-card: linear-gradient(145deg, hsl(220 25% 8%), hsl(220 25% 12%));
+    --gradient-accent: linear-gradient(135deg, hsl(250 100% 65%), hsl(200 100% 65%));
     
     /* Shadows */
-    --shadow-card: 0 4px 8px -2px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
-    --shadow-elevated: 0 10px 25px -5px hsl(0 0% 0% / 0.5), 0 4px 6px -2px hsl(0 0% 0% / 0.4);
-    --shadow-glow: 0 0 20px hsl(120 100% 40% / 0.3);
+    --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --shadow-elevated: 0 20px 64px rgba(0, 0, 0, 0.4);
+    --shadow-glow: 0 0 32px rgba(139, 92, 246, 0.3);
 
     --sidebar-background: 0 0% 6%;
     --sidebar-foreground: 120 100% 90%;
@@ -131,9 +131,50 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground dark;
+    /* Add subtle texture */
+    background-image: radial-gradient(circle at 25% 25%, hsl(250 100% 65% / 0.03) 0%, transparent 50%),
+                      radial-gradient(circle at 75% 75%, hsl(270 100% 70% / 0.03) 0%, transparent 50%);
+  }
+}
+
+@layer components {
+  /* Simplified modern effects */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm border border-white/10 shadow-card;
   }
   
-  /* Custom animations */
+  .glass-header {
+    @apply bg-dashboard-card/90 backdrop-blur-sm border-b border-white/10;
+  }
+  
+  .glass-button {
+    @apply bg-white/5 border border-white/20 hover:bg-white/10 transition-all duration-300;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-primary bg-clip-text text-transparent;
+  }
+  
+  .floating {
+    animation: floating 3s ease-in-out infinite;
+  }
+  
+  @keyframes floating {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+  
+  .glow-hover {
+    @apply transition-all duration-300 hover:shadow-glow hover:-translate-y-1;
+  }
+  
+  .btn-modern {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+  }
+}
+
+@layer base {
+  /* Enhanced animations */
   .animate-pulse-glow {
     animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
@@ -141,11 +182,16 @@ All colors MUST be HSL.
   @keyframes pulse-glow {
     0%, 100% {
       opacity: 1;
-      box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+      box-shadow: var(--shadow-glow);
     }
     50% {
       opacity: .8;
-      box-shadow: 0 0 30px hsl(var(--primary) / 0.5);
+      box-shadow: 0 0 48px hsl(var(--primary) / 0.6);
     }
+  }
+  
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
   }
 }

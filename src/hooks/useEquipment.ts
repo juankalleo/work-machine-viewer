@@ -134,6 +134,31 @@ export function useEquipment() {
     }
   }, [equipmentData, toast]);
 
+  const addMonitor = useCallback(async (monitorData: Omit<Monitor, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
+    try {
+      const newMonitor = await db.createMonitor(monitorData);
+      if (equipmentData) {
+        setEquipmentData({
+          ...equipmentData,
+          monitors: [newMonitor, ...equipmentData.monitors]
+        });
+      }
+      toast({
+        title: "Monitor adicionado",
+        description: "Monitor adicionado com sucesso!",
+      });
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({
+        title: "Erro ao adicionar monitor",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [equipmentData, toast]);
+
   // Sincronização manual
   const syncNow = useCallback(async () => {
     try {
@@ -168,6 +193,7 @@ export function useEquipment() {
     error,
     fetchAllEquipment,
     addCPU,
+    addMonitor,
     editCPU,
     removeCPU,
     syncNow,
